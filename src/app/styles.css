@@ -1,0 +1,235 @@
+:root {
+  --bg: #15130f;
+  --surface: #1f1c17;
+  --surface-2: #2a2621;
+  --line: #3a352d;
+  --text: #ece6da;
+  --muted: #a39a89;
+  --accent: #c98b3c;
+  --error: #e2614a;
+  --warning: #d8a33a;
+  --info: #6f9fc4;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.app { display: flex; flex-direction: column; min-height: 100vh; }
+
+/* ---- header ------------------------------------------------------------- */
+
+.app-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; padding: 12px 20px;
+  background: var(--surface); border-bottom: 1px solid var(--line);
+}
+.app-header h1 { margin: 0; font-size: 16px; font-weight: 650; letter-spacing: 0.01em; }
+.app-header nav { display: flex; gap: 8px; }
+
+button {
+  font: inherit; color: var(--text); background: var(--surface-2);
+  border: 1px solid var(--line); border-radius: 6px;
+  padding: 6px 12px; cursor: pointer;
+}
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+button.active { background: var(--accent); border-color: var(--accent); color: #1a1309; font-weight: 600; }
+
+/* ---- layout ------------------------------------------------------------- */
+
+.layout {
+  flex: 1; display: grid;
+  grid-template-columns: minmax(260px, 300px) 1fr minmax(300px, 360px);
+  min-height: 0;
+}
+.sidebar-left, .sidebar-right {
+  overflow-y: auto; background: var(--surface);
+  border-right: 1px solid var(--line);
+}
+.sidebar-right { border-right: none; border-left: 1px solid var(--line); }
+.viewport { display: flex; align-items: center; justify-content: center; padding: 28px; min-width: 0; }
+
+@media (max-width: 1000px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar-left, .sidebar-right { border: none; border-bottom: 1px solid var(--line); }
+}
+
+/* ---- panels ------------------------------------------------------------- */
+
+.panel { padding: 16px 18px; }
+.panel h2 { margin: 0 0 14px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); }
+.panel h3 { margin: 16px 0 8px; font-size: 13px; }
+
+fieldset { border: 1px solid var(--line); border-radius: 6px; margin: 0 0 16px; padding: 10px 12px; }
+legend { padding: 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+label.radio { display: flex; align-items: center; gap: 8px; padding: 3px 0; cursor: pointer; }
+
+.field { display: block; margin-bottom: 16px; }
+.field-label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px; }
+.field-value { font-family: var(--mono); color: var(--accent); }
+.field input[type="text"], .field select {
+  width: 100%; font: inherit; font-family: var(--mono);
+  color: var(--text); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 5px; padding: 6px 8px;
+}
+.field input[type="text"]:focus, .field select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.field input[type="range"] { width: 100%; accent-color: var(--accent); }
+.field-hint { display: block; margin-top: 5px; font-size: 12px; color: var(--muted); }
+.field-error { display: block; margin-top: 5px; font-size: 12px; color: var(--warning); }
+
+.swatch {
+  display: inline-block; width: 11px; height: 11px; border-radius: 2px;
+  border: 1px solid rgba(0,0,0,0.4); vertical-align: -1px; margin-right: 5px;
+}
+
+/* ---- canvas ------------------------------------------------------------- */
+
+.canvas-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 100%; }
+.board-canvas {
+  max-width: 100%; max-height: 68vh;
+  background: var(--surface); border-radius: 4px;
+  box-shadow: 0 18px 44px rgba(0,0,0,0.5);
+}
+.face-outline { fill: transparent; stroke: rgba(0,0,0,0.5); stroke-width: 90; }
+.face-outline.hot { stroke: var(--accent); stroke-width: 260; }
+.canvas-caption { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* ---- findings ----------------------------------------------------------- */
+
+.all-clear { color: var(--muted); font-size: 13px; }
+.export-blocked {
+  margin: 0 0 14px; padding: 9px 11px; font-size: 13px;
+  background: rgba(226,97,74,0.12); border-left: 3px solid var(--error); border-radius: 4px;
+}
+.findings ul { list-style: none; margin: 0; padding: 0; }
+.findings li { margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.findings li:last-child { border-bottom: none; }
+.findings h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.07em; }
+.findings-error h3 { color: var(--error); }
+.findings-warning h3 { color: var(--warning); }
+.findings-info h3 { color: var(--info); }
+
+button.finding {
+  display: block; width: 100%; text-align: left;
+  background: none; border: none; padding: 0; margin-bottom: 5px;
+}
+button.finding code {
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+  margin-right: 7px;
+}
+.finding-message { font-size: 13px; }
+.finding-count { font-family: var(--mono); font-size: 11px; color: var(--accent); margin-left: 6px; }
+.finding-remedy { margin: 0 0 5px; font-size: 12.5px; color: var(--muted); }
+.finding-why summary { font-size: 12px; color: var(--info); cursor: pointer; }
+.finding-why p { margin: 7px 0 0; font-size: 12.5px; color: var(--muted); }
+.finding-cites { font-family: var(--mono); font-size: 11px; }
+
+/* ---- summary bar -------------------------------------------------------- */
+
+.summary-bar {
+  display: flex; flex-wrap: wrap; gap: 24px;
+  padding: 10px 20px; font-size: 13px; color: var(--muted);
+  background: var(--surface); border-top: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+}
+.summary-bar strong { color: var(--text); font-family: var(--mono); }
+
+.error-state { padding: 60px 20px; text-align: center; }
+.error-state p { color: var(--muted); max-width: 60ch; margin: 12px auto 24px; }
+
+/* ---- print sheet -------------------------------------------------------- */
+
+.print-sheet { max-width: 7.5in; margin: 0 auto; padding: 32px 20px 80px; }
+.print-cover h1 { margin: 0 0 4px; font-size: 24px; }
+.print-dims { margin: 0 0 18px; font-family: var(--mono); font-size: 17px; color: var(--accent); }
+.print-legend { display: flex; flex-wrap: wrap; gap: 20px; margin: 0 0 20px; }
+.print-legend div { display: flex; gap: 7px; align-items: baseline; }
+.print-legend dt, .print-legend dd { margin: 0; font-size: 13px; }
+.print-legend dd { font-family: var(--mono); color: var(--muted); }
+
+.print-warnings {
+  padding: 11px 13px; border-left: 3px solid var(--warning);
+  background: rgba(216,163,58,0.1); border-radius: 4px;
+}
+.print-warnings h2 { margin: 0 0 7px; font-size: 13px; }
+.print-warnings ul { margin: 0; padding-left: 18px; font-size: 12.5px; }
+.print-warnings em { color: var(--muted); font-style: normal; }
+
+.print-section { margin-top: 34px; }
+.print-section > h2 {
+  margin: 0 0 12px; padding-bottom: 6px; font-size: 15px;
+  border-bottom: 2px solid var(--line);
+}
+.print-note { font-size: 12.5px; color: var(--muted); max-width: 70ch; }
+
+table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 13px; }
+caption { text-align: left; font-weight: 600; padding: 10px 0 5px; font-size: 13px; }
+caption .direction { font-weight: 400; color: var(--muted); font-size: 12px; }
+th, td { text-align: left; padding: 5px 9px; border-bottom: 1px solid var(--line); }
+th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+td.num, th.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+tr.total td { font-weight: 650; border-top: 2px solid var(--line); border-bottom: none; }
+.ledger td.sign { width: 1.4em; font-family: var(--mono); color: var(--muted); }
+/* Machine settings are read at arm's length beside a running saw. */
+td.setting { font-family: var(--mono); font-size: 13.5px; }
+
+.cut-group h3, .phase h3 { font-size: 13px; margin: 18px 0 7px; }
+.step { margin-bottom: 15px; }
+.step h4 { display: flex; gap: 9px; align-items: baseline; margin: 0 0 4px; font-size: 13.5px; }
+.step-number {
+  display: inline-grid; place-items: center;
+  min-width: 1.5em; height: 1.5em; border-radius: 50%;
+  background: var(--surface-2); font-family: var(--mono); font-size: 11.5px;
+}
+.step p { margin: 0 0 5px; font-size: 13px; max-width: 72ch; }
+.step-setting { font-family: var(--mono); font-size: 13.5px; color: var(--accent); }
+.step-check, .step-wait { font-size: 12.5px; color: var(--muted); }
+
+.safety-note {
+  padding: 7px 10px; border-left: 3px solid var(--warning);
+  background: rgba(216,163,58,0.1); font-size: 12.5px;
+}
+/* Cannot be collapsed or suppressed. */
+.safety-critical {
+  padding: 10px 12px; border: 2px solid var(--error);
+  background: rgba(226,97,74,0.14); border-radius: 4px;
+  font-weight: 650; font-size: 13px;
+}
+
+/* ---- print -------------------------------------------------------------- */
+
+@media print {
+  @page { size: letter portrait; margin: 0.5in; }
+
+  :root { color-scheme: light; }
+  body { background: #fff; color: #000; }
+  .app-header, .summary-bar { display: none; }
+  .print-sheet { max-width: none; padding: 0; }
+
+  /* Never split a step or a table across a page break. */
+  .step, .ledger, .cut-group, .print-warnings { break-inside: avoid; }
+  .print-section { break-before: page; }
+  .print-cover { break-after: avoid; }
+
+  th, td { border-bottom: 1px solid #bbb; }
+  tr.total td { border-top: 2px solid #000; }
+  .print-dims, .step-setting { color: #000; }
+  .print-note, .step-check, .step-wait, caption .direction { color: #444; }
+
+  /* Monochrome printers are the norm in a shop; keep the callout visible. */
+  .safety-critical {
+    border: 3px solid #000; background: #fff;
+    print-color-adjust: exact; -webkit-print-color-adjust: exact;
+  }
+  .safety-note { border-left: 3px solid #000; background: #f2f2f2; }
+  .print-warnings { border-left: 3px solid #000; background: #f2f2f2; }
+  .swatch { border: 1px solid #000; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+}

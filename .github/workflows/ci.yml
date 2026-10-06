@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      # The spec's cross-references are mechanical properties, so they are
+      # checked mechanically: every rule must cite a knowledge-base entry that
+      # exists, and the safety contract must hold.
+      - name: Spec consistency
+        run: npm run check:spec
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      # core/ holds everything that has to be correct; it stays testable only
+      # while it is free of framework entanglement.
+      - name: core/ boundary
+        run: npm run check:boundary
+
+      - name: Tests
+        run: npm test
+
+      - name: Build
+        run: npm run build

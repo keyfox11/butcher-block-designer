@@ -36,6 +36,26 @@ function build(
   return validate({ project: { ...base, ...project }, evaluated, shop });
 }
 
+/** Same construction, but exposing the evaluation for material comparisons. */
+function buildRaw(
+  overrides: Partial<Parameters<typeof checkerboard>[0]> = {},
+  shop: ShopProfile = DEFAULT_SHOP,
+) {
+  const { graph } = checkerboard(
+    {
+      cellSize: inches(1.5),
+      speciesA: 'hard-maple',
+      speciesB: 'black-walnut',
+      columns: 8,
+      rows: 10,
+      boardThickness: inches(1.5),
+      ...overrides,
+    },
+    shop,
+  );
+  return { graph, evaluated: evaluate(graph, shop) };
+}
+
 /* -------------------------------------------------------------------------- */
 /* Rule-set integrity                                                          */
 /* -------------------------------------------------------------------------- */
@@ -114,6 +134,22 @@ describe('the classics validate clean', () => {
   it('a three-wood brick board raises no errors', () => {
     const result = build({ bond: 'brick', speciesB: 'black-cherry' });
     expect(result.counts.error).toBe(0);
+  });
+
+  it('an odd-column board does not waste material on its second panel', () => {
+    // Regression: both panels were built at the full length while each supplied
+    // only half the slices, nearly doubling the lumber. V-MAT-020 caught it.
+    // Each panel is now only as long as the slices it actually provides.
+    const result = build({ columns: 7 });
+    expect(result.findings.find((f) => f.ruleId === 'V-MAT-020')).toBeUndefined();
+  });
+
+  it('an odd-column board uses less stock than a wider even-column one', () => {
+    const odd = buildRaw({ columns: 7 });
+    const even = buildRaw({ columns: 8 });
+    const total = (r: typeof odd) =>
+      Object.values(r.evaluated.ledger.input).reduce((s, v) => s + v, 0);
+    expect(total(odd)).toBeLessThan(total(even));
   });
 
   it('reports board feet as information, not as a problem', () => {

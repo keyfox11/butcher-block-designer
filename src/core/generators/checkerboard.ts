@@ -110,11 +110,19 @@ export function checkerboard(params: CheckerboardParams, shop: ShopProfile): Gen
   // Thickness is set by the crosscut, cut oversize by what flattening removes.
   const sliceLength = ticks(boardThickness + 2 * flattenPerFace);
 
-  // n slices need n-1 internal kerfs, plus an allowance to square the ends.
-  const panelLength = ticks(rows * sliceLength + (rows - 1) * shop.kerf + 2 * trimPerEdge);
   const panelWidth = ticks(columns * cellSize);
-
   const needsTwoPanels = bond === 'brick' || columns % 2 === 1;
+
+  // Each panel is only as long as the slices IT supplies. Building both at the
+  // full length and taking half the slices from each would nearly double the
+  // lumber for the same board -- which is what the material multiplier check
+  // (V-MAT-020) exists to catch.
+  const slicesFromA = needsTwoPanels ? Math.ceil(rows / 2) : rows;
+  const slicesFromB = needsTwoPanels ? Math.floor(rows / 2) : 0;
+
+  // n slices need n-1 internal kerfs, plus an allowance to square the ends.
+  const lengthFor = (slices: number): Ticks =>
+    ticks(slices * sliceLength + Math.max(slices - 1, 0) * shop.kerf + 2 * trimPerEdge);
 
   const panelA = buildPanel(b, {
     order: 'AB',
@@ -123,7 +131,7 @@ export function checkerboard(params: CheckerboardParams, shop: ShopProfile): Gen
     speciesA,
     speciesB,
     ringOrientation,
-    panelLength,
+    panelLength: lengthFor(slicesFromA),
     shop,
     bond,
   });
@@ -136,17 +144,14 @@ export function checkerboard(params: CheckerboardParams, shop: ShopProfile): Gen
         speciesA,
         speciesB,
         ringOrientation,
-        panelLength,
+        panelLength: lengthFor(slicesFromB),
         shop,
         bond,
         halfCellEnds: bond === 'brick',
       })
     : panelA;
 
-  // Crosscut each panel into the slices it supplies. Alternating rows means
-  // each panel provides half of them.
-  const slicesFromA = needsTwoPanels ? Math.ceil(rows / 2) : rows;
-  const slicesFromB = needsTwoPanels ? Math.floor(rows / 2) : 0;
+  const panelLength = lengthFor(slicesFromA);
 
   const cutA = b.add(
     { kind: 'crosscut', input: { node: panelA, port: 0 }, sliceLength, count: slicesFromA, miter: SQUARE },
