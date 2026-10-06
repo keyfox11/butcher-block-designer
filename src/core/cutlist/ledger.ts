@@ -120,9 +120,42 @@ export function buildLedger(
     );
   }
 
-  /* ---- Width: pattern-driven, forward ----------------------------------- */
+  /* ---- Width and length -------------------------------------------------- */
 
-  const panel = a.stagePanels[0];
+  /**
+   * A non-grid lay-up has neither a panel width nor a pitch.
+   *
+   * The two sections below encode the two-stage grid: the finished width is the
+   * stage-1 panel's width, and the finished length is the slice count times the
+   * panel thickness. Both are exactly right for a checkerboard and meaningless
+   * for a honeycomb, where the stage-1 assembly is a hex prism three inches
+   * across and consecutive pucks sit in the same row, so the pitch reads zero.
+   *
+   * Left unguarded this produced a cut list stating a 3" x 0" board next to a
+   * picture of a 12" x 15" one -- the precise divergence this whole design
+   * exists to prevent. For these patterns the two dimensions come from the
+   * lay-up's own extent, measured on the evaluated geometry, less the trim.
+   */
+  const freeLayUp = a.finalLaminate?.op.placement === 'free' ? a.finalLaminate : null;
+
+  if (freeLayUp) {
+    const extent = layUpExtent(evaluated, freeLayUp.id);
+    const label = freeLayUp.label ?? 'lay-up';
+    for (const axis of ['width', 'length'] as const) {
+      const laid = axis === 'width' ? extent.width : extent.height;
+      const finished = axis === 'width' ? dims.width : dims.length;
+      const section = new SectionBuilder(
+        axis === 'width' ? 'Width' : 'Length',
+        'forward',
+      ).start(`${label}, measured across`, laid);
+      if (laid > finished) {
+        section.subtract('trim the ragged border to straight sides', laid - finished, 'KB-A05');
+      }
+      sections.push(section.finish(`finished ${axis}`));
+    }
+  }
+
+  const panel = freeLayUp ? null : a.stagePanels[0];
   if (panel) {
     const stripCount = panel.op.members.length;
     const panelWidth = panelWidthOf(graph, evaluated, panel.id);
@@ -138,7 +171,7 @@ export function buildLedger(
 
   /* ---- Length: pattern-driven, via the pitch ---------------------------- */
 
-  if (a.finalLaminate) {
+  if (a.finalLaminate && !freeLayUp) {
     const sliceCount = a.finalLaminate.op.members.length;
     const pitch = pitchOf(graph, evaluated, a.finalLaminate.id);
     const gross = sliceCount * pitch;
@@ -195,6 +228,18 @@ export function buildLedger(
   }
 
   return { sections };
+}
+
+/** Extent of a lay-up before trimming, read off the evaluated geometry. */
+function layUpExtent(evaluated: EvalResult, id: string): { width: number; height: number } {
+  const piece = evaluated.nodeOutputs.get(id)?.[0];
+  if (!piece) return { width: 0, height: 0 };
+  const xs = piece.crossSection.outline.map((p) => p.x);
+  const ys = piece.crossSection.outline.map((p) => p.y);
+  return {
+    width: Math.max(...xs) - Math.min(...xs),
+    height: Math.max(...ys) - Math.min(...ys),
+  };
 }
 
 /** Width of a stage-1 panel, read from the evaluated workpiece at that node. */

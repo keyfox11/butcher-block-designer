@@ -88,6 +88,36 @@ export function ParameterPanel({ patternId, params, onPattern, onChange }: Param
         />
       )}
 
+      {definition.uses.stripes && (
+        <CountField
+          label="Stripes per tile"
+          value={params.stripes}
+          min={2}
+          max={12}
+          onChange={(stripes) => onChange({ ...params, stripes })}
+          note="Each stripe is a rip and a glue line. More stripes read finer, and cost proportionally more work."
+        />
+      )}
+
+      {definition.uses.edgeResolution && (
+        <label className="field">
+          <span className="field-label">Edge resolution</span>
+          <select
+            value={params.edgeResolution}
+            onChange={(e) =>
+              onChange({ ...params, edgeResolution: e.target.value as PatternParams['edgeResolution'] })
+            }
+          >
+            <option value="trimThrough">Trim through — exact size, partial cubes at the border</option>
+            <option value="growToWhole">Grow to whole periods — pattern repeats across the cut</option>
+          </select>
+          <span className="field-hint">
+            Hexagons cannot tile a rectangle, so this is a decision, not a detail. Growing changes
+            the finished size, and the cut list says by how much.
+          </span>
+        </label>
+      )}
+
       {definition.uses.seed && (
         <label className="field">
           <span className="field-label">

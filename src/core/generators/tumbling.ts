@@ -85,7 +85,15 @@ export interface TumblingBlockParams {
   readonly ringOrientation?: RingOrientation;
   readonly flattenPerFace?: Ticks;
   readonly trimPerEdge?: Ticks;
-  /** Longest hex prism to handle at the saw. Three taped sticks get unwieldy. */
+  /**
+   * Longest hex prism to handle at the saw.
+   *
+   * Shorter is better twice over. Three bevelled sticks taped together get
+   * unwieldy past a couple of feet, and -- less obviously -- shorter prisms
+   * mean MORE of them, which amortises the setup cut. Each billet pays one
+   * wasted strip to establish its first bevelled edge, so two sticks per billet
+   * yields about 68% of the rip and four yields about 81%.
+   */
   readonly maxPrismLength?: Ticks;
 }
 
@@ -142,7 +150,7 @@ export function tumblingBlock(
     ringOrientation = 'quartersawn',
     flattenPerFace = DEFAULT_FLATTEN_PER_FACE,
     trimPerEdge = DEFAULT_TRIM_PER_EDGE,
-    maxPrismLength = inches(36),
+    maxPrismLength = inches(24),
   } = params;
 
   if (T <= 0) throw new Error('Stock thickness must be positive');
@@ -233,13 +241,23 @@ export function tumblingBlock(
   const puckLength = ticks(boardThickness + 2 * flattenPerFace);
   const puckCount = cells.length;
 
-  const wantedLength = puckCount * (puckLength + shop.kerf) + 2 * trimPerEdge;
-  const prismLength = ticks(Math.min(maxPrismLength, wantedLength));
-  const pucksPerPrism = maxSlices(ticks(prismLength - 2 * trimPerEdge), puckLength, shop.kerf);
-  if (pucksPerPrism < 1) {
+  // Size the prisms to the pucks they must yield, not to the longest stick the
+  // shop can handle.
+  //
+  // Taking the maximum length every time leaves the LAST prism mostly offcut:
+  // 45 pucks at 19 per prism is 19, 19, 7, and that last 7-puck prism throws
+  // away two feet of three-species glue-up. Spreading the pucks evenly instead
+  // -- 15, 15, 15 -- and cutting the sticks to suit costs nothing and is what
+  // anybody would do at the bench.
+  const capacity = maxSlices(ticks(maxPrismLength - 2 * trimPerEdge), puckLength, shop.kerf);
+  if (capacity < 1) {
     throw new Error('A prism this short cannot yield even one puck of the requested thickness');
   }
-  const prismCount = Math.ceil(puckCount / pucksPerPrism);
+  const prismCount = Math.ceil(puckCount / capacity);
+  const pucksPerPrism = Math.ceil(puckCount / prismCount);
+  const prismLength = ticks(
+    pucksPerPrism * puckLength + (pucksPerPrism - 1) * shop.kerf + 2 * trimPerEdge,
+  );
 
   /* ---- Build -------------------------------------------------------------- */
 

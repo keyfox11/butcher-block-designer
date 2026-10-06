@@ -46,6 +46,10 @@ const INITIAL: PatternParams = {
   speciesC: 'black-cherry',
   angle: degrees(15),
   seed: 42,
+  // Six stripes across a 3" herringbone tile is 1/2" each: right at the safe
+  // rip width, and fine enough to read as a pattern rather than as planks.
+  stripes: 6,
+  edgeResolution: 'trimThrough',
 };
 
 type View = '2d' | '3d' | 'split' | 'print';

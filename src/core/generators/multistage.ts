@@ -324,6 +324,8 @@ function layUp(
   const b = new GraphBuilder();
   const tileThickness = ticks(boardThickness + 2 * flattenPerFace);
 
+  // Spread the tiles evenly across the panels and cut each panel to suit, so
+  // the last one is not mostly offcut. See the same note in `tumbling.ts`.
   const panelCapacity = maxSlices(
     ticks(maxPanelLength - 2 * trimPerEdge),
     tileThickness,
@@ -332,10 +334,10 @@ function layUp(
   if (panelCapacity < 1) {
     throw new Error('A panel this short cannot yield even one tile of the requested thickness');
   }
-  const tilesPerPanel = Math.min(panelCapacity, tiles.length);
-  const panelCount = Math.ceil(tiles.length / tilesPerPanel);
+  const panelCount = Math.ceil(tiles.length / panelCapacity);
+  const tilesPerPanel = Math.ceil(tiles.length / panelCount);
   const panelLength = ticks(
-    Math.min(maxPanelLength, tilesPerPanel * (tileThickness + shop.kerf) + 2 * trimPerEdge),
+    tilesPerPanel * tileThickness + (tilesPerPanel - 1) * shop.kerf + 2 * trimPerEdge,
   );
 
   const tileRefs: Ref[] = [];

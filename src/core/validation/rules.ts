@@ -881,27 +881,51 @@ const MAT_010: Rule = {
 const MAT_020: Rule = {
   id: 'V-MAT-020',
   category: 'material',
-  cites: ['KB-A12'],
+  cites: ['KB-A12', 'KB-A04'],
   check(ctx) {
     if (ctx.evaluated.workpiece.orientation !== 'endGrain') return [];
-    const input = sum(Object.values(ctx.evaluated.ledger.input));
+    const { input, kerf, removed, offcut } = ctx.evaluated.ledger;
+    const total = sum(Object.values(input));
     const finished = finishedVolume(ctx);
-    if (finished <= 0) return [];
-    const ratio = input / finished;
+    if (finished <= 0 || total <= 0) return [];
+    const ratio = total / finished;
     // A sanity check on the whole plan rather than on any one node. If an
     // end-grain board claims to need about as much lumber as an edge-grain
     // one, something upstream is wrong.
     if (ratio >= 1.4 && ratio <= 2.6) return [];
+
+    // Naming where the wood goes turns a number into a decision. The three
+    // destinations have completely different remedies, and which one dominates
+    // is not guessable from the ratio.
+    const share = (v: Record<string, number>) => (sum(Object.values(v)) / total) * 100;
+    const parts = [
+      { what: 'sawdust', pct: share(kerf), fix: 'A thinner kerf blade, or fewer and wider pieces.' },
+      {
+        what: 'milling, flattening and trim',
+        pct: share(removed),
+        fix: 'Buy stock closer to final thickness, and build fewer separate sub-assemblies — each one pays its own milling allowance.',
+      },
+      {
+        what: 'offcuts',
+        pct: share(offcut),
+        fix: 'Longer panels, or more pieces per billet. A bevelled rip also throws away one setup strip per board to establish its first slanted edge, so more strips from each billet spreads that cost.',
+      },
+    ].sort((a, b) => b.pct - a.pct);
+    const worst = parts[0]!;
+
     return [
       finding(MAT_020, 'warning', {
         message:
-          `This design uses ${ratio.toFixed(2)}x the finished volume in rough stock. ` +
-          'End-grain boards normally run 1.5x to 2.5x.',
+          `This design uses ${ratio.toFixed(2)}x the finished volume in rough stock, against the ` +
+          '1.5x to 2.5x an ordinary end-grain board runs. ' +
+          parts.map((p) => `${p.pct.toFixed(0)}% ${p.what}`).join(', ') +
+          '. Multi-stage patterns legitimately sit above the band — a honeycomb trims its whole ' +
+          'border away — so this is a cost to plan for rather than necessarily a mistake.',
         remedy:
           ratio < 1.4
             ? 'Check the milling and trim allowances; this looks too efficient for end grain.'
-            : 'Consider longer panels or fewer offcuts to reduce waste.',
-        data: { ratio },
+            : `Most of it is ${worst.what}. ${worst.fix}`,
+        data: { ratio, kerfPct: share(kerf), removedPct: share(removed), offcutPct: share(offcut) },
       }),
     ];
   },
