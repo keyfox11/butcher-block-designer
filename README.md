@@ -8,6 +8,8 @@ board feet, a cut list with fence settings, step-by-step build instructions, per
 maps, and a 3-D preview. It refuses to generate a plan it believes is unbuildable, and it tells
 you why.
 
+> **Live: <https://keyfox11.github.io/butcher-block-designer/>** — nothing to install.
+>
 > **Status: working tool, P2 complete.** 14 patterns, 30 validation rules, 491 tests, CI green.
 > The next phase is an open decision — see [`docs/HANDOFF.md`](docs/HANDOFF.md).
 >
@@ -19,14 +21,19 @@ you why.
 
 ## Quick start
 
-Requires **Node 20 or newer**.
+There is nothing to install — open **<https://keyfox11.github.io/butcher-block-designer/>**.
+
+Everything runs in the browser: no server, no account, no data leaves the page. Designs are shared
+as a URL with the whole design in the hash fragment, which is never sent to any server.
+
+To run it locally instead, requires **Node 20 or newer**:
 
 ```bash
 npm install
 npm run dev
 ```
 
-Then open <http://localhost:5173>. Everything runs locally; there is no server and no account.
+Then open <http://localhost:5173>.
 
 To check out the interesting part first, pick **3D cube** from the pattern list and open the
 **Cut list** tab. That board is a honeycomb of hexagonal prisms, which is exactly the shape no
@@ -238,9 +245,12 @@ output trustworthy; the model in `02` is what makes it expressive.
 
 ## Status and licence
 
-Private repository, no licence yet — all rights reserved by default. Not deployed: GitHub Pages
-serves a private repo only on a paid plan, which is unresolved, so CI builds the app but does not
-publish it.
+**[MIT](LICENSE).** Use it, fork it, sell it — keep the notice.
 
-Nothing here has been built in wood yet. The arithmetic is verified against published results and
-the geometry is checked by construction, but the first real board is still the real test.
+Deployed to GitHub Pages at <https://keyfox11.github.io/butcher-block-designer/>, published by CI
+only after the spec checker, typecheck, lint, `core/` boundary and all 491 tests pass. A build that
+fails its own validator does not replace the site.
+
+**Nothing here has been built in wood yet.** The arithmetic is verified against two independent
+published sources and the geometry is checked by construction, but the first real board is still
+the real test — and the licence disclaims warranty for a reason. Measure before you cut.

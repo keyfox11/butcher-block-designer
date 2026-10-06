@@ -35,7 +35,7 @@ Two consequences that have to be settled before the first build rather than retr
 | Concern | Handling |
 | --- | --- |
 | **Base path** | Pages serves from `/<repo>/`, so Vite needs `base: '/butcher-block-designer/'`. Hardcoding absolute asset paths anywhere will break the deploy. |
-| **Client-side routes** | Shared design URLs are `/d/<version>.<payload>` ([`09`](09-exports.md#shareable-urls)). Pages has no rewrite rules, so a deep link 404s on refresh. |
+| **Client-side routes** | None. Shared design URLs put the payload in the **hash fragment** — `/#/d/<version>.<payload>` ([`09`](09-exports.md#shareable-urls)) — precisely because Pages has no rewrite rules: a fragment is never sent to the server, so it cannot 404 on refresh. `codec.test.ts` asserts the path form is never produced. |
 
 The route problem has a standard fix — a `404.html` that redirects into `index.html` with the
 original path preserved — but the simpler option is worth taking first: encode the design in the
@@ -46,23 +46,29 @@ feature working on any static host without per-host configuration.
 Deploy via a GitHub Actions workflow on push to `main`, running `tools/check-spec.mjs` and the
 test suite as gates before publishing.
 
-### Open dependency: Pages requires a paid plan on a private repo
+### Resolved: public repo, MIT, deployed from CI
 
-The repository is **private**, and GitHub Pages only serves from a private repository on a paid
-plan (Pro, Team, or Enterprise). On a free account, Pages requires the repository to be public.
+**Decision, 2026-10-06.** Pages serves a private repository only on a paid plan, so the choice was
+between paying, hosting elsewhere, or publishing the source. The repository is now **public** under
+the **[MIT licence](../../LICENSE)**, and `ci.yml` publishes to Pages at
+<https://keyfox11.github.io/butcher-block-designer/>.
 
-This is not blocking — deployment is a P1 concern and the app builds and runs locally regardless
-— but it has to be resolved before the deploy workflow is written. Three ways out:
+Why MIT rather than a copyleft licence: the sole author holds the copyright, so the permissive
+direction is the reversible one — future versions can be relicensed unilaterally, whereas taking
+outside contributions under copyleft and later going permissive cannot be undone. MPL 2.0 was the
+considered alternative, and its file-level copyleft would have meant an Exhibit A header in 52
+source files plus an awkward answer for `docs/spec/`, which is prose, to defend against a
+commercial closed fork of a cutting-board designer.
 
-| Option | Trade-off |
-| --- | --- |
-| Make the repo public when deploying | Free. Means publishing the source, which also means deciding a licence. |
-| GitHub Pro | Keeps the repo private and Pages works unchanged. |
-| Deploy elsewhere | Netlify and Vercel both serve private-repo builds on their free tiers. Costs nothing but adds an account, and the hash-fragment routing above means no per-host config is needed either way. |
+Two properties of the deploy that are deliberate:
 
-The hash-fragment decision was made partly for this reason: it keeps the shared-link feature
-working identically on any static host, so changing hosts later is a one-line config change
-rather than a rework.
+- **It is gated on the check job.** The site is only replaced by a commit that passed the spec
+  checker, the typecheck, the `core/` boundary and every test. For a tool whose premise is output
+  you can trust at the saw, publishing a build that failed its own validator would do more damage
+  than being offline.
+- **No per-host configuration is needed.** The hash-fragment decision above keeps shared links
+  working identically on any static host, so moving to Netlify, Vercel, or a paid plan with a
+  private repo later is a one-line `base` change rather than a rework.
 
 ## Module boundaries
 

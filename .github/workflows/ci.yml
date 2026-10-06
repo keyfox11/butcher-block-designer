@@ -36,5 +36,60 @@ jobs:
       - name: Tests
         run: npm test
 
+      # The deploy job re-runs this rather than reusing the output, because it
+      # needs the artifact in its own workspace. Kept here too so a build break
+      # fails the check job on pull requests, where deploy never runs.
       - name: Build
         run: npm run build
+
+  # ---------------------------------------------------------------------------
+  # Publish to GitHub Pages.
+  #
+  # Gated on `check`, so the site can only be replaced by a commit that passed
+  # the spec checker, the type check, the core/ boundary and all 491 tests. The
+  # whole premise of this tool is output you can trust at the saw; publishing a
+  # build that failed its own validator would undercut that more than being
+  # offline would.
+  # ---------------------------------------------------------------------------
+  deploy:
+    needs: check
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    # Required by actions/deploy-pages: `pages` to publish, `id-token` for the
+    # OIDC token it exchanges rather than using a stored secret.
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    # One deployment at a time, and never cancel one midway: a cancelled deploy
+    # can leave the site serving a half-replaced set of hashed assets.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      # vite.config.ts sets base to /butcher-block-designer/ for builds only,
+      # which is what Pages serves from. Share links live in the hash fragment,
+      # so no rewrite rules or 404 fallback are needed.
+      - name: Build
+        run: npm run build
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - id: deployment
+        uses: actions/deploy-pages@v4

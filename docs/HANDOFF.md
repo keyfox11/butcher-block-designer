@@ -9,7 +9,8 @@ including a table of what is specified but not yet built. The spec in [`docs/spe
 sits *between* them: why the code deviates from the spec where it does, which invariant catches
 which class of bug, and the traps that cost time.
 
-**Status:** P0, P1 and P2 complete. 491 tests, CI green.
+**Status:** P0, P1 and P2 complete. 491 tests, CI green. Public under [MIT](../LICENSE) and live
+at <https://keyfox11.github.io/butcher-block-designer/>.
 **The next phase is an open decision** — see [§6](#6-the-open-decision).
 
 ---
@@ -260,13 +261,17 @@ The smallest bundle that makes a first real board possible and trustworthy.
    while the ledger states 3.000" — the tool contradicting itself on its own headline identity.
    At 1/64" it prints `1 47/64"` (1.734375"), and across-flats lands at 3.004". **Bevel rips
    should default to 1/64".**
-3. **Resolve deployment.** Pages needs a paid plan on a private repo. Until then nobody can open
-   this at a bench, which is where it is meant to be used.
+3. ~~**Resolve deployment.**~~ **Done.** Repo made public under [MIT](../LICENSE); `ci.yml` has a
+   `deploy` job, gated on `check`, publishing to
+   <https://keyfox11.github.io/butcher-block-designer/>. Reasoning in
+   [`08`](spec/08-architecture-and-stack.md#resolved-public-repo-mit-deployed-from-ci).
 
-*Why first: the tool's entire premise is output you can trust at the saw. With G4 captured there
-are now two independent cross-checks pinning the dimensional model from both directions, so what
-remains in this bundle is a dimension that prints inconsistently and a tool nobody can open at a
-bench.*
+**So option A is down to one item: fence-setting precision.**
+
+*Why first: the tool's entire premise is output you can trust at the saw. Two of the three items
+are now done — G4 pins the dimensional model from both directions, and the app is reachable at a
+bench. What remains is a single dimension that prints inconsistently, which is the last thing
+standing between the tool and a first real board.*
 
 ### B — Finish the validator
 
@@ -344,7 +349,7 @@ the rule gaps in [§7](#7-the-validator-gap).
 | --- | --- |
 | **Nothing has been built in wood** | The arithmetic is verified against published results and the geometry is checked by construction, but no board from this tool has been made. That is the real test, and it will find things no invariant can. |
 | **Grid-first vs finished-first** | Found by capturing G4, and the one question it left open. Old Line *adds* its squaring allowance to the slab, so you get the board you asked for. Our grid patterns *subtract* `2 × trimPerEdge` from the nominal grid, so a 16 × 24 grid of ¾" cells finishes at 11⅞" × 17⅞" rather than 12" × 18". Both reserve the same ⅛"; only which number the user states is different. Grid-first is consistent across every grid generator and dodges Old Line's silent `ceil` overshoot — but it does mean the app cannot be asked for a 12" board directly. A deliberate convention, not a defect; worth revisiting if the finished size turns out to be what people actually type. |
-| **Pages on a private repo** | GitHub Pages serves from a private repo only on a paid plan. Repo is private, plan unknown. Resolve before writing a deploy workflow — CI builds but does not publish. Options in [`08`](spec/08-architecture-and-stack.md#open-dependency-pages-requires-a-paid-plan-on-a-private-repo). |
+| **5.5 MB in git history** | `test-print.pdf` was committed in `b2c3ec0` and removed later, so every clone still pays for it. Its metadata carries the author name, which the commit metadata shows anyway. Dropping it needs a history rewrite and force-push — safe with one author, but it was judged not worth doing once the repo went public. |
 | **Minimum safe puck size** | For crosscutting hex pucks on a sled. Still a conservative shop-profile default; the tumbling block now exercises it, so a real number is measurable. |
 | **Multi-stage material cost** | A tumbling block runs ~3.6× finished volume and herringbone ~3.1×, against KB-A12's 1.5–2.5× band for an ordinary end-grain board. `V-MAT-020` warns and now names where the wood goes. Whether the band should scale with pattern class is a judgement call left open rather than guessed. |
 | **Custom species, tier-3 graph view** | On P2's list, not built. The species table has 9 rows, 4 of them with `null` coefficients where no source was found — `V-MOVE-010` reports that it cannot fully assess those mixes rather than substituting a plausible number. |
