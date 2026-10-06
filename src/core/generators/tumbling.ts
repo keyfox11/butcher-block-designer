@@ -203,7 +203,20 @@ export function tumblingBlock(
   const finishedWidth = grown?.width ?? targetWidth;
   const finishedLength = grown?.length ?? targetLength;
 
-  const cells = coveringCells(finishedWidth, finishedLength, { pitchX, pitchY, oddRowShift, T, halfHeight });
+  // Lay up to the finished size PLUS a trim allowance on every edge.
+  //
+  // Covering the finished rectangle exactly is not enough, for the same reason
+  // you never cut a panel to final size and hope: the honeycomb's border is a
+  // zigzag of cell edges, and where one happens to land on the trim line the
+  // saw has nothing to remove. In the model that shows up as one-tick notches
+  // along the finished edge. An allowance gives the cut something to take.
+  const cells = coveringCells(finishedWidth + 2 * trimPerEdge, finishedLength + 2 * trimPerEdge, {
+    pitchX,
+    pitchY,
+    oddRowShift,
+    T,
+    halfHeight,
+  });
   if (cells.length === 0) throw new Error('No hex cells cover the requested board');
 
   const minX = Math.min(...cells.map((c) => c.cx - T));
@@ -285,7 +298,7 @@ export function tumblingBlock(
     const prism = b.add(
       // Free placement: the union of three rhombi is a hexagon, and a bounding
       // box would claim the four corners it does not fill.
-      { kind: 'laminate', members, placement: 'free', sequence: 'simultaneous' },
+      { kind: 'laminate', members, placement: 'free', sequence: 'taped' },
       `Glue hex prism ${p + 1} (tape, do not clamp)`,
     );
 

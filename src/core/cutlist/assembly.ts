@@ -55,7 +55,7 @@ export interface AssemblyMap {
   readonly height: Ticks;
   readonly pieces: readonly AssemblyPiece[];
   /** Angled joints slide under clamp pressure, so sequencing is on the map. */
-  readonly sequence: 'simultaneous' | 'rowByRow';
+  readonly sequence: 'simultaneous' | 'rowByRow' | 'taped';
   readonly memberCount: number;
 }
 

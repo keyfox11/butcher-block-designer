@@ -372,9 +372,290 @@ const GEOM_030: Rule = {
   },
 };
 
+/**
+ * Corners, ignoring vertices that merely sit along a straight edge.
+ *
+ * The union outline splits edges wherever a neighbour's corner lands on them,
+ * so a hexagon can arrive with eight or ten vertices and still be a hexagon.
+ * Counting direction changes rather than points is what makes the shape test
+ * mean what it says.
+ */
+function cornerCount(outline: readonly { x: number; y: number }[]): number {
+  let corners = 0;
+  for (let i = 0; i < outline.length; i++) {
+    const previous = outline[(i - 1 + outline.length) % outline.length]!;
+    const current = outline[i]!;
+    const next = outline[(i + 1) % outline.length]!;
+    const turn =
+      (current.x - previous.x) * (next.y - current.y) -
+      (current.y - previous.y) * (next.x - current.x);
+    // Scaled by the edge lengths, so a long edge with a one-tick kink still
+    // reads as straight rather than as a corner.
+    const scale = Math.hypot(current.x - previous.x, current.y - previous.y) *
+      Math.hypot(next.x - current.x, next.y - current.y);
+    if (scale > 0 && Math.abs(turn) / scale > 1e-3) corners++;
+  }
+  return corners;
+}
+
+function extentOf(outline: readonly { x: number; y: number }[]): { w: number; h: number } {
+  const xs = outline.map((p) => p.x);
+  const ys = outline.map((p) => p.y);
+  return { w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
+}
+
+function outputOf(ctx: ValidationContext, ref: { node: NodeId; port: number }) {
+  return ctx.evaluated.nodeOutputs.get(ref.node)?.[ref.port];
+}
+
+
+/**
+ * How far the built hexagon may sit from 2T before the rhombi are not rhombi.
+ *
+ * A 64th of an inch. The arithmetic floor is one tick (1/8000"), because
+ * T x tan(30) lands almost exactly between two ticks and the rhombus's two
+ * slanted edges round opposite ways, so this leaves a factor of 125 of
+ * headroom. It still catches a rip width that is wrong by more than 0.6%,
+ * where the cubes begin to visibly fail to close.
+ */
+const HEX_CLOSURE_TOLERANCE = 125;
+
+const GEOM_040: Rule = {
+  id: 'V-GEOM-040',
+  category: 'geometry',
+  cites: ['KB-A11', 'KB-A04'],
+  check(ctx) {
+    const out: Finding[] = [];
+
+    for (const node of Object.values(ctx.project.graph.nodes)) {
+      if (node.op.kind !== 'laminate') continue;
+      // Only free placement can interlock in two directions at once. Members
+      // laid side by side along one axis always have a clamping axis.
+      if (node.op.placement !== 'free') continue;
+      if (node.op.sequence !== 'simultaneous') continue;
+
+      const placements = ctx.evaluated.memberPlacements.get(node.id) ?? [];
+      if (placements.length < 3) continue;
+
+      // Does any pair of members sit diagonally to each other? If so no single
+      // clamping axis closes every joint: pressure along x leaves the y joints
+      // open and vice versa.
+      const boxes = placements.map((p) => extentOf(p.outline));
+      void boxes;
+      const centres = placements.map((p) => {
+        const xs = p.outline.map((q) => q.x);
+        const ys = p.outline.map((q) => q.y);
+        return { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: (Math.min(...ys) + Math.max(...ys)) / 2 };
+      });
+      const spreadX = Math.max(...centres.map((c) => c.x)) - Math.min(...centres.map((c) => c.x));
+      const spreadY = Math.max(...centres.map((c) => c.y)) - Math.min(...centres.map((c) => c.y));
+      if (spreadX === 0 || spreadY === 0) continue;
+
+      out.push(
+        finding(GEOM_040, 'error', {
+          nodes: [node.id],
+          message:
+            `This glue-up places ${placements.length} pieces in two directions at once, but asks ` +
+            'for them to be clamped simultaneously. No single clamping axis closes every joint: ' +
+            'pressure across the board leaves the joints along it open, and the pieces slide.',
+          remedy:
+            'Glue it row by row with a cure between rows, or wrap it in tape as a tension band — ' +
+            'which is the documented technique for a honeycomb of hex pucks.',
+          data: { members: placements.length, spreadX, spreadY },
+          dedupeKey: 'no-clamping-axis',
+        }),
+      );
+    }
+
+    return out;
+  },
+};
+
+/**
+ * The free correctness check.
+ *
+ * Three 60-degree rhombi close into a regular hexagon exactly when the rip
+ * width is T / cos(30 degrees), and that condition shows up as a dimension
+ * anybody can put a rule on: across the flats, the hexagon is exactly twice the
+ * stock thickness. One comparison catches the single most common way a 3D cube
+ * board goes wrong.
+ *
+ * Measured off the evaluated geometry, never read back from the generator's
+ * own arithmetic -- otherwise it would only confirm that the generator agrees
+ * with itself.
+ */
+const GEOM_050: Rule = {
+  id: 'V-GEOM-050',
+  category: 'geometry',
+  cites: ['KB-A05'],
+  check(ctx) {
+    const out: Finding[] = [];
+
+    for (const node of Object.values(ctx.project.graph.nodes)) {
+      if (node.op.kind !== 'laminate' || node.op.members.length !== 3) continue;
+
+      const result = ctx.evaluated.nodeOutputs.get(node.id)?.[0];
+      if (!result) continue;
+      // Three strips glued into a panel are a quadrilateral and not this rule's
+      // business; only a six-sided result is a hexagon attempt.
+      if (cornerCount(result.crossSection.outline) !== 6) continue;
+
+      const members = node.op.members
+        .map((m) => outputOf(ctx, m.piece))
+        .filter((w): w is NonNullable<typeof w> => w !== undefined);
+      if (members.length !== 3) continue;
+      if (members.some((m) => cornerCount(m.crossSection.outline) !== 4)) continue;
+
+      // The stock thickness is the rhombus stick's own thickness, before any
+      // turn: the dimension the planer set.
+      const stockThickness = Math.min(...members.map((m) => extentOf(m.crossSection.outline).h));
+      const hex = extentOf(result.crossSection.outline);
+      const acrossFlats = Math.min(hex.w, hex.h);
+      const acrossCorners = Math.max(hex.w, hex.h);
+      const expected = 2 * stockThickness;
+      const error = Math.abs(acrossFlats - expected);
+
+      if (error > HEX_CLOSURE_TOLERANCE) {
+        const impliedRip = acrossFlats / Math.sqrt(3);
+        out.push(
+          finding(GEOM_050, 'error', {
+            nodes: [node.id],
+            message:
+              `The hex prism measures ${formatTicks(ticks(Math.round(acrossFlats)))} across the ` +
+              `flats, but a true 60° rhombus from ${formatTicks(ticks(Math.round(stockThickness)))} ` +
+              `stock gives exactly ${formatTicks(ticks(Math.round(expected)))}. The rhombi will ` +
+              'not close into a hexagon: gaps will open in the glue-up and the cubes will not read ' +
+              'as cubes.',
+            remedy:
+              `Set the rip fence to ${formatTicks(ticks(Math.round(stockThickness / Math.cos(Math.PI / 6))))} ` +
+              `(T ÷ cos 30°), not ${formatTicks(ticks(Math.round(impliedRip)))}, and check the blade ` +
+              'is 30° from vertical — 60° to the table.',
+            data: { acrossFlats, acrossCorners, stockThickness, expected },
+            dedupeKey: 'hex-closure',
+          }),
+        );
+      }
+    }
+
+    return out;
+  },
+};
+
+/**
+ * The ragged honeycomb border, caught where it actually matters.
+ *
+ * The first version of this rule asked whether a `trim` existed downstream of
+ * the honeycomb, which is the wrong question twice over: a trim can be present
+ * in the graph and not on the path to the board, and a trim can be present and
+ * still leave the border ragged if it is too generous. The question that
+ * matters is simply whether the FINISHED board has straight sides.
+ */
+const GEOM_060: Rule = {
+  id: 'V-GEOM-060',
+  category: 'geometry',
+  cites: ['KB-A05'],
+  check(ctx) {
+    const board = ctx.evaluated.workpiece.crossSection.outline;
+    // A rectangle needs no resolving. Anything else is a board whose edge is
+    // not a straight line, which is not a cutting board.
+    if (cornerCount(board) <= 4) return [];
+
+    const culprits = Object.values(ctx.project.graph.nodes)
+      .filter((n) => n.op.kind === 'laminate' && n.op.placement === 'free')
+      .map((n) => n.id);
+    if (culprits.length === 0) return [];
+
+    return [
+      finding(GEOM_060, 'error', {
+        nodes: culprits,
+        message:
+          `The finished board has ${cornerCount(board)} corners rather than four. The honeycomb's ` +
+          'ragged border was never resolved, so the board would come off the bench with a zigzag ' +
+          'edge instead of straight sides.',
+        remedy:
+          'Choose an edge resolution: trim through the outer ring of cells and accept partial ' +
+          'cubes, or grow the board to a whole number of lattice periods so the pattern repeats ' +
+          'across the cut.',
+        data: { corners: cornerCount(board) },
+        dedupeKey: 'ragged-edge',
+      }),
+    ];
+  },
+};
+
 /* -------------------------------------------------------------------------- */
 /* V-GRAIN                                                                     */
 /* -------------------------------------------------------------------------- */
+
+const GRAIN_020: Rule = {
+  id: 'V-GRAIN-020',
+  category: 'grain',
+  cites: ['KB-A07'],
+  check(ctx) {
+    const out: Finding[] = [];
+
+    for (const node of Object.values(ctx.project.graph.nodes)) {
+      if (node.op.kind !== 'crosscut' || node.op.miter === 0) continue;
+
+      const miter = Math.abs(toDegrees(node.op.miter));
+      out.push(
+        finding(GRAIN_020, 'warning', {
+          nodes: [node.id],
+          message:
+            `This crosscut is mitered ${miter.toFixed(1)}°, which shears the piece rather than ` +
+            'rotating it. The grain is no longer perpendicular to the working face, so the board ' +
+            `loses the self-healing that is the reason to choose end grain, tears out when ` +
+            `flattened, and shows a face ${(1 / Math.cos(toRadians(node.op.miter))).toFixed(2)}× ` +
+            'longer than the square cut would.',
+          remedy:
+            'Square the crosscut and reach the pattern with a multi-stage sub-assembly instead — ' +
+            'rotating a finished end-grain block keeps the grain vertical, a miter does not.',
+          data: { miterDegrees: miter },
+          dedupeKey: 'mitered-crosscut',
+        }),
+      );
+    }
+
+    return out;
+  },
+};
+
+const GRAIN_030: Rule = {
+  id: 'V-GRAIN-030',
+  category: 'grain',
+  cites: ['KB-B01'],
+  check(ctx) {
+    const out: Finding[] = [];
+
+    for (const node of Object.values(ctx.project.graph.nodes)) {
+      if (node.op.kind !== 'laminate') continue;
+
+      const orientations = new Set(
+        node.op.members
+          .map((m) => outputOf(ctx, m.piece)?.orientation)
+          .filter((o): o is NonNullable<typeof o> => o !== undefined),
+      );
+      if (orientations.size <= 1) continue;
+
+      out.push(
+        finding(GRAIN_030, 'error', {
+          nodes: [node.id],
+          message:
+            'This glue-up mixes long-grain and end-grain pieces. Their grain runs at 90° to each ' +
+            'other, so they move against each other across every seasonal cycle and the glue line ' +
+            'between them is loaded in shear until it fails.',
+          remedy:
+            'Rotate every member to end grain before this glue-up, or none of them. A board is ' +
+            'one or the other, never both.',
+          data: { orientations: [...orientations] },
+          dedupeKey: 'mixed-grain-axis',
+        }),
+      );
+    }
+
+    return out;
+  },
+};
 
 const GRAIN_010: Rule = {
   id: 'V-GRAIN-010',
@@ -672,7 +953,12 @@ export const RULES: readonly Rule[] = [
   TOOL_060,
   TOOL_090,
   GEOM_030,
+  GEOM_040,
+  GEOM_050,
+  GEOM_060,
   GRAIN_010,
+  GRAIN_020,
+  GRAIN_030,
   DIM_010,
   DIM_020,
   DIM_040,

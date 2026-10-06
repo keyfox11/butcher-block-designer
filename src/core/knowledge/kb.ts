@@ -47,6 +47,49 @@ export const KB: Readonly<Record<KbId, KbEntry>> = {
     sources: ['Old Line Woodcraft end-grain calculator', 'CBDJS source'],
   }),
 
+  'KB-A04': entry({
+    id: 'KB-A04',
+    title: 'Multi-stage sub-assemblies',
+    confidence: 'consensus',
+    text:
+      'Stages 1 and 2 nest. A glued-up block can itself be ripped, crosscut, and re-glued as the ' +
+      'input to a further stage, which is how true herringbone, basket weave, and pinwheel patterns ' +
+      'are built. Each extra stage is another overnight cure and another flattening, so the count ' +
+      'is the real cost of a pattern and belongs in front of the user before they buy lumber.',
+    sources: ['Common end-grain practice', 'Derived from the operation vocabulary'],
+  }),
+
+  'KB-A05': entry({
+    id: 'KB-A05',
+    title: 'The hexagonal-prism method (3D tumbling block)',
+    confidence: 'derived',
+    text:
+      'The 3D cube board is not a grid and not the two-stage method. Stock of thickness T is ' +
+      'bevel-ripped at 30° from vertical into 60° rhombus sticks, three sticks are glued into a ' +
+      'hexagonal prism (taped, not clamped — the pieces slide), the prism is crosscut into pucks, ' +
+      'and the pucks are tiled as a honeycomb. The rhombus condition fixes the rip width at ' +
+      'T / cos(30°) = 1.154700 × T, which makes the hexagon exactly 2T across the flats and ' +
+      '2.309401 × T across the corners. Three 60° rhombi close because each contributes its 120° ' +
+      'corner and 3 × 120° = 360°.',
+    sources: [
+      'This Old House: how to make a cube cutting board',
+      'Derived geometry, numerically verified',
+    ],
+  }),
+
+  'KB-A07': entry({
+    id: 'KB-A07',
+    title: 'Mitered crosscuts produce oblique prisms',
+    confidence: 'derived',
+    text:
+      'A crosscut at a miter does not rotate the pattern; it shears the piece. The grain is no ' +
+      'longer perpendicular to the working face, which costs the self-healing that is the whole ' +
+      'reason to choose end grain, tears out badly when flattened, and scales the exposed face by ' +
+      '1/cos(miter). A true multi-stage sub-assembly reaches the same pattern with the grain still ' +
+      'perpendicular, and is the better answer wherever it is available.',
+    sources: ['Purdue Extension FNR-163', 'Derived geometry'],
+  }),
+
   'KB-A06': entry({
     id: 'KB-A06',
     title: 'Angled layer boundaries (bevel-ripped strips)',

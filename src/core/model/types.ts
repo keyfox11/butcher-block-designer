@@ -173,10 +173,22 @@ export interface LaminateOp {
    */
   readonly placement?: 'explicit' | 'butted' | 'free';
   /**
-   * Angled joints convert clamp pressure into lateral force and slide, so they
-   * are glued row by row with a cure between rows (KB-A11).
+   * How the glue-up is actually closed up.
+   *
+   * `simultaneous` is the ordinary case: joints perpendicular to one clamping
+   * axis, so one set of clamps closes all of them at once.
+   *
+   * `rowByRow` is for angled joints, which convert clamp pressure into lateral
+   * force and slide out of registration. Glued a row at a time with a cure
+   * between rows (KB-A11).
+   *
+   * `taped` is for assemblies with no clamping axis at all -- three rhombi
+   * meeting around a shared line, where pressure from any direction pushes a
+   * piece out somewhere else. Painter's tape stretched across the joints acts
+   * as a tension band and pulls them together from every side at once (KB-A05).
+   * It is not a weaker form of clamping; it is the only thing that works.
    */
-  readonly sequence: 'simultaneous' | 'rowByRow';
+  readonly sequence: 'simultaneous' | 'rowByRow' | 'taped';
 }
 
 export interface ReorientOp {

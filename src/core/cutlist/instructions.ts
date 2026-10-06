@@ -316,25 +316,39 @@ function glueStep(
   acrossDimension: number,
   thickness: number,
   shop: ShopProfile,
-  sequence: 'simultaneous' | 'rowByRow',
+  sequence: 'simultaneous' | 'rowByRow' | 'taped',
 ): Omit<Step, 'number'> {
   const jointAreaSqIn = toInches(acrossDimension) * toInches(thickness);
   const requiredForce = TARGET_CLAMP_PRESSURE * jointAreaSqIn;
   const clampsNeeded = Math.ceil(requiredForce / shop.clampForceEach);
 
-  const body =
+  // Sizing the joint comes first whatever holds the pieces together: end grain
+  // wicks glue out of the joint and starves it.
+  const sizing =
     `Glue ${memberCount} pieces edge to edge. ` +
     'End grain wicks glue away and starves the joint, so size it: a light coat, let it tack, ' +
-    'then a second coat before clamping. ' +
-    `Aim for about ${TARGET_CLAMP_PRESSURE} psi — roughly ${clampsNeeded} clamps at ` +
-    `${shop.clampForceEach} lbf across ${jointAreaSqIn.toFixed(1)} sq in of joint. ` +
-    (sequence === 'rowByRow'
-      ? 'Glue row by row with about 30 minutes between rows: angled joints turn clamp pressure into lateral force and slide. '
-      : '') +
-    'Use cauls to keep the faces coplanar; a stepped glue-up wastes flattening allowance.';
+    'then a second coat before assembling. ';
+
+  // A taped assembly gets no clamp arithmetic, because there are no clamps and
+  // quoting a pressure it cannot reach would be worse than saying nothing.
+  const body =
+    sequence === 'taped'
+      ? sizing +
+        'Do not clamp this. Three rhombi meeting around a shared line have no clamping axis: ' +
+        'pressure from any direction pushes one of them out somewhere else. Wrap painter’s tape ' +
+        'firmly across the joints along the whole length — stretched tape acts as a tension band ' +
+        'and pulls all three together at once. Check the hexagon is closed on both ends before the ' +
+        'glue grabs.'
+      : sizing +
+        `Aim for about ${TARGET_CLAMP_PRESSURE} psi — roughly ${clampsNeeded} clamps at ` +
+        `${shop.clampForceEach} lbf across ${jointAreaSqIn.toFixed(1)} sq in of joint. ` +
+        (sequence === 'rowByRow'
+          ? 'Glue row by row with about 30 minutes between rows: angled joints turn clamp pressure into lateral force and slide. '
+          : '') +
+        'Use cauls to keep the faces coplanar; a stepped glue-up wastes flattening allowance.';
 
   const safety: SafetyNote[] =
-    clampsNeeded > shop.clampCount
+    sequence !== 'taped' && clampsNeeded > shop.clampCount
       ? [
           {
             cites: 'KB-D05',
