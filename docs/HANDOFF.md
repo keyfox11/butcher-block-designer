@@ -3,11 +3,14 @@
 Context for picking this up cold. Everything here is either **not recoverable** from the code, or
 expensive enough to rediscover that it is worth writing down.
 
-The spec in [`docs/spec/`](spec/) is the design. The commit messages carry the detailed reasoning
-for individual changes. This file carries what sits *between* them: why the code deviates from the
-spec where it does, which invariant catches which class of bug, and the traps that cost time.
+Three documents, three jobs. The [`README`](../README.md) says **what exists and how to run it**,
+including a table of what is specified but not yet built. The spec in [`docs/spec/`](spec/) is
+**the design**. Commit messages carry the reasoning for individual changes. This file carries what
+sits *between* them: why the code deviates from the spec where it does, which invariant catches
+which class of bug, and the traps that cost time.
 
-**Status:** P0, P1 and P2 complete. P3 is next. 482 tests, CI green.
+**Status:** P0, P1 and P2 complete. 482 tests, CI green.
+**The next phase is an open decision** — see [§6](#6-the-open-decision).
 
 ---
 
@@ -16,7 +19,7 @@ spec where it does, which invariant catches which class of bug, and the traps th
 | Phase | State | Exit criterion |
 | --- | --- | --- |
 | **P0** — correctness core | ✅ done | Checkerboard cut list reproduces CBDJS golden case G1 exactly; ledger traces every dimension to rough stock; conservation holds over random graphs |
-| **P1** — angles, 3-D, sharing | ✅ done | All five CBDJS examples reproduce with correct cut lists and 3-D previews; share links 223–263 chars against a 2,000 budget |
+| **P1** — angles, 3-D, sharing | ✅ done | All five CBDJS examples reproduce with correct cut lists and 3-D previews; share links well inside the 2,000-char budget (223–263 as measured at P1; ~370 now that the generator payload carries three more parameters) |
 | **P2** — multi-stage | ✅ done | 3D cube from a single `stockThickness` with `hexAcrossFlats == 2T` verified on the built geometry; honeycomb assembly map labels all 35 pucks; two explicit edge resolutions; herringbone, pinwheel and basket weave with grain perpendicular throughout and no mitered crosscut anywhere |
 | P3 — free paint + decomposer | ⬜ next | |
 | P4 — edge treatments, polish | ⬜ | |
@@ -202,6 +205,10 @@ other. Measured on the pinwheel: bounding box 13.5", covered region ending at 12
   mid-content; `python - <<'PY' || node -e '...'` hung forever on stdin (no python installed, and
   `||` never fires because the left side never *exits*). Use `Write`/`Edit` for source files, and
   `command -v` rather than `||` when the left side reads stdin. Short heredocs are fine.
+- **Backticks inside `node -e "..."` break the shell.** A double-quoted bash string treats them as
+  command substitution, so any script containing a Markdown backtick or a JS template literal dies
+  with `unexpected EOF`. It bit twice while editing docs. Use `Edit` for anything containing
+  backticks, or a quoted heredoc feeding node's stdin.
 - **Browser screenshots go blank when the window is backgrounded.** The page is fine. Verify with
   `get_page_text` or `javascript_tool` instead — that is how the assembly maps were checked.
 - **HMR resets the app's view state.** After an edit the UI is back on the default pattern and the
@@ -212,56 +219,119 @@ other. Measured on the pinwheel: bounding box 13.5", covered region ending at 12
 
 ---
 
-## 6. P3 — what's next
+## 6. The open decision
 
-**Goal:** the free-paint tier — paint a mosaic, have the tool find a build for it.
+**P2 is finished and nothing is half-built. The next direction was deliberately left open**, so
+this section exists to be picked up cold rather than re-derived. Four options were put forward;
+none was chosen.
+
+The roadmap says P3 next, but that ordering is not binding — P3 is also the one component the spec
+says may not fully succeed, and it benefits most from everything else being solid first.
+
+### A — Shop-ready pass *(the recommendation at the time)*
+
+The smallest bundle that makes a first real board possible and trustworthy.
+
+1. **Capture golden case G4.** Old Line's worked example is the only remaining *independent*
+   cross-check; everything else verifies against CBDJS or against the tool's own geometry.
+2. **Fix fence-setting precision.** Measured, not hypothetical: the 3D cube at the default 1½"
+   stock wants a fence of `1.73205"`. At the default 1/32" display precision the cut list prints
+   `1 23/32"` (1.71875"), which is 0.0133" low. Build to that and across-flats comes out 2.977"
+   while the ledger states 3.000" — the tool contradicting itself on its own headline identity.
+   At 1/64" it prints `1 47/64"` (1.734375"), and across-flats lands at 3.004". **Bevel rips
+   should default to 1/64".**
+3. **Resolve deployment.** Pages needs a paid plan on a private repo. Until then nobody can open
+   this at a bench, which is where it is meant to be used.
+
+*Why first: the tool's entire premise is output you can trust at the saw, and that premise
+currently rests on one external cross-check plus a dimension that prints inconsistently.*
+
+### B — Finish the validator
+
+The ~7 specced rules that do not exist. Small, well-defined, and it closes the honesty gap
+completely. See the table in [§7](#7-the-validator-gap).
+
+### C — P4, edge treatments
+
+Juice groove, chamfer, roundover, feet — with `V-DIM-030` and `V-DIM-050`, which need them to
+exist before they can do anything. The most user-visible gap: a cutting board designer with no
+juice groove option is incomplete, and the geometry is already specified.
+
+### D — P3, free paint and the decomposer
+
+The roadmap's next phase, and the biggest capability jump.
 
 - Paint and region-draw editing on the 2-D canvas (tier 2)
 - `core/decompose`: grid detection → guillotine search → band segmentation → known tilings
 - Target-versus-achieved display; unreachable-region reporting; snap-to-buildable with diff
-- Image import with quantisation preview
-- Worker-based decomposition with progress and cancel
+- Image import with quantisation preview; worker-based decomposition with progress and cancel
 
-### What P2 leaves in place for it
-
-`V-GEOM-040` is currently narrowed to clampability (see
+**What P2 leaves in place for it.** `V-GEOM-040` is currently narrowed to clampability (see
 [`04`](spec/04-validation-rules.md#v-geom-040--the-constructibility-proof)). Its full form — the
 guillotine/lamination/tiling decomposition — **is** the decomposer, so it should be built once, in
-`core/decompose`, and the rule should call it rather than the two growing separate implementations.
+`core/decompose`, with the rule calling it rather than the two growing separate implementations.
 
-The union outline is the piece most likely to be load-bearing here: a painted region's buildability
-is a question about whether its faces can be grouped into assemblies that each tile a rectangle,
-and the hole/disconnection reporting already answers the sub-question "does this group of faces
-form one connected piece with no voids".
+The union outline is the piece most likely to be load-bearing: a painted region's buildability is a
+question about whether its faces group into assemblies that each tile a rectangle, and the
+hole/disconnection reporting already answers "does this group of faces form one connected piece
+with no voids".
 
-### The riskiest assumption
-
-> P3 is the one component that may not fully succeed, and the spec says so.
-
-The honest failure mode is a decomposer that *almost* works — producing a graph for most painted
-targets and quietly approximating the rest. Approximating is the one thing it must not do. A clear
-refusal naming the offending regions is a better product than a cut list that cannot be followed,
-and the machinery to say exactly which faces are unreachable already exists.
+**The riskiest assumption.** The honest failure mode is a decomposer that *almost* works —
+producing a graph for most painted targets and quietly approximating the rest. Approximating is the
+one thing it must not do. A clear refusal naming the offending regions is a better product than a
+cut list that cannot be followed, and the machinery to say which faces are unreachable exists.
 
 ---
 
-## 7. Open items
+## 7. The validator gap
+
+30 rules implemented. The spec defines these and they do not exist:
+
+| Rule | What it would check | Blocked on |
+| --- | --- | --- |
+| `V-TOOL-020` | Kerf is a large fraction of a strip's width | — |
+| `V-TOOL-040` | Crosscut exceeds sled capacity | would light up the dead `sledCapacity` |
+| `V-TOOL-070` | Clamping force below target pressure | partly covered by an instruction safety note |
+| `V-TOOL-080` | Glue-up width exceeds clamp reach | would light up the dead `clampMaxReach` |
+| `V-TOL-010/020` | Accumulated tolerance across n cuts | `toleranceBand()` exists in `core/units`, called by nothing |
+| `V-DIM-030` | Juice groove inset under 3/4" | needs P4 edge treatments |
+| `V-DIM-050` | Feet fixed in a pattern that fights movement | needs P4 edge treatments |
+
+**Not gaps, despite looking like them:** `V-GEOM-010`, `V-GEOM-020` and `V-MAT-030` are marked
+*structural* in the spec and are genuinely enforced — the evaluator throws on a partition that does
+not tile, on laminate members of unequal length, and on a panel too short for its slice count. A
+thrown `GeometryError` is a stronger guarantee than a finding, since it cannot be clicked past.
+
+### A note on `V-MOVE-030`'s threshold
+
+Of the three movement rules, only this one's number was **chosen rather than derived**.
+`V-MOVE-010`'s 0.150" comes from a calibration table in [`04`](spec/04-validation-rules.md) that
+reproduces exactly; `V-MOVE-020`'s 1/8" is where movement starts to matter for anything that has to
+fit. `V-MOVE-030`'s 5/8" is a judgement call: half an inch is a 24" maple board and those get built
+routinely, so the line had to sit above it. If it ever needs defending or moving, that is the
+reasoning to argue with.
+
+---
+
+## 8. Open items
+
+Things that are known and unresolved, excluding the four options in [§6](#6-the-open-decision) and
+the rule gaps in [§7](#7-the-validator-gap).
 
 | Item | Notes |
 | --- | --- |
-| **Golden case G4** | Old Line's worked example was never captured. G1, G2, G3, G5 are verified. Capture from the live tool and commit as a fixture. |
+| **Nothing has been built in wood** | The arithmetic is verified against published results and the geometry is checked by construction, but no board from this tool has been made. That is the real test, and it will find things no invariant can. |
+| **Golden case G4** | Old Line's worked example was never captured. G1, G2, G3, G5 are verified. The only remaining *independent* cross-check — everything else verifies against CBDJS or against the tool's own geometry. |
 | **Pages on a private repo** | GitHub Pages serves from a private repo only on a paid plan. Repo is private, plan unknown. Resolve before writing a deploy workflow — CI builds but does not publish. Options in [`08`](spec/08-architecture-and-stack.md#open-dependency-pages-requires-a-paid-plan-on-a-private-repo). |
 | **Minimum safe puck size** | For crosscutting hex pucks on a sled. Still a conservative shop-profile default; the tumbling block now exercises it, so a real number is measurable. |
 | **Multi-stage material cost** | A tumbling block runs ~3.6× finished volume and herringbone ~3.1×, against KB-A12's 1.5–2.5× band for an ordinary end-grain board. `V-MAT-020` warns and now names where the wood goes. Whether the band should scale with pattern class is a judgement call left open rather than guessed. |
-| **Display precision vs fence settings** | At the default 1/32", a rip width of 1.7321" prints as 1 23/32" — 0.014" off. Fine for a grid pattern, marginal for a hexagon where the error compounds across three joints. Consider defaulting bevel-rip fence settings to 1/64". |
-| **`V-TOL-*` and two dead settings** | `toleranceBand()` exists in `core/units` and nothing calls it, so `perCutTolerance` is inert; `sledCapacity` and `clampMaxReach` likewise have no rule. All three are pinned by `shop-profile.test.ts` so they cannot be forgotten again. |
-| **Custom species, tier-3 graph view** | On P2's list, not built. The species table has 9 rows, 4 of them with `null` coefficients where no source was found. |
+| **Custom species, tier-3 graph view** | On P2's list, not built. The species table has 9 rows, 4 of them with `null` coefficients where no source was found — `V-MOVE-010` reports that it cannot fully assess those mixes rather than substituting a plausible number. |
 | **Sugar maple provenance** | Sources give both 4.8/9.9 and 4.9/9.5. Recorded, not averaged. |
 | **Bundle size** | `BoardScene` chunk is ~1 MB (275 kB gzipped). Lazy-loaded, so it is off the first paint. |
 
 ---
 
-## 8. Commands
+## 9. Commands
 
 ```bash
 npm run check      # spec consistency + typecheck + lint + core/ boundary + tests
