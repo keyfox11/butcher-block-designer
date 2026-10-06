@@ -58,7 +58,7 @@ Structure is specified in [`05`](05-cut-list-and-instructions.md#assembly-maps).
 ```jsonc
 {
   "schemaVersion": 3,
-  "meta": { "name": "Walnut checker 12x16", "units": "imperial", "measurementPrecision": 31 },
+  "meta": { "name": "Walnut checker 12x16", "units": "imperial", "measurementPrecision": 250 },
   "shopProfile": { /* ... */ },
   "speciesPalette": ["hard-maple", "black-walnut"],
   "graph": { "nodes": { /* ... */ }, "output": { "node": "n17", "port": 0 } },

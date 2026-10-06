@@ -35,3 +35,6 @@ coverage/
 
 # Claude Code
 .claude/worktrees/
+
+# Vite/TS build artifacts
+node_modules/.tmp/

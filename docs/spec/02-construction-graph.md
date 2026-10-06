@@ -74,7 +74,19 @@ bottom face. The model's expressiveness is exactly equal to physical reality.
 ### Inputs are exact integers
 
 ```ts
-/** Integer count of 1/1000 inch. Every user-entered length is Ticks. */
+/**
+ * Integer count of 1/8000 inch. Every user-entered length is Ticks.
+ *
+ * 8000 = LCM(64, 1000), chosen so that BOTH input families a woodworker
+ * actually types are exactly representable:
+ *   - binary fractions to 1/64"   (1/64 = 125 ticks, 1/32 = 250, 1/16 = 500)
+ *   - decimals to three places    (0.001" = 8 ticks)
+ * A power-of-two base such as 1/1024 handles the fractions but cannot
+ * represent 1.2"; a decimal base such as 1/1000 handles the decimals but
+ * cannot represent 1/32" — which is the default measurement precision, so
+ * that base would make the tool unable to express its own default.
+ */
+const TICKS_PER_INCH = 8000;
 type Ticks = number & { readonly __brand: 'Ticks' };
 
 /** Integer millidegrees. Every angle is MilliDeg. */
@@ -87,8 +99,8 @@ length is expected, which is the cheapest possible defence against a unit mix-up
 **Why not floats.** `12 × 1.2` in IEEE-754 doubles is `14.399999999999999`. That is not a
 cosmetic problem in this domain. Woodworkers work to 1/32", errors accumulate across a 20-strip
 glue-up, and a board that computes to `11.999999"` gets displayed as "12 minus a hair" — sending
-someone to re-measure a joint that was never wrong. On ticks, the same computation is `12 × 1200 = 14400`
-exactly.
+someone to re-measure a joint that was never wrong. On ticks, the same computation is
+`12 × 9600 = 115200` ticks = `14.4"` exactly, in integer arithmetic.
 
 For all-rectilinear designs — checkerboard, brick, stripes, the overwhelming majority of real
 boards — **every dimension in the cut list is exact**.
@@ -343,7 +355,7 @@ interface Project {
      * about units — so metric stays reversible without being built.
      */
     units: 'imperial' | 'metric';
-    /** Rounding target for displayed dimensions. Default 1/32". */
+    /** Rounding target for displayed dimensions. Default 1/32" = 250 ticks. */
     measurementPrecision: Ticks;
   };
   shopProfile: ShopProfile;
