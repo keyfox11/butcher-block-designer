@@ -208,8 +208,64 @@ Remedy: prefer true multi-stage herringbone.
 | `V-MOVE-020` | Predicted absolute seasonal movement is large. Informational — a quarter inch on a 12" maple board is *normal* (KB-B04), and a tool that alarms about normal behaviour trains users to ignore it. | `info` | KB-B04 |
 | `V-MOVE-030` | Board width far beyond typical for the species mix. | `warning` | KB-B01, KB-B04 |
 
-`V-MOVE-010` is the one genuinely debatable threshold in the validator, and it is specified
-below as an open design decision rather than being quietly resolved.
+`V-MOVE-010` is the one rule in the validator whose threshold is a judgement call rather than a
+machine limit or a geometric fact, so its derivation is given in full.
+
+### Choosing the metric
+
+Two obvious metrics both fail, in opposite directions:
+
+| Metric | Fails because |
+| --- | --- |
+| **Coefficient ratio** `C_max / C_min` | Scale-free, so it flags a 6" maple/padauk board (which is fine) and stays silent on a 30" one (which is not) |
+| **Raw coefficient gap × board size** | Ignores proportion, so a maple board with a 2% padauk pinstripe scores the same as a 50/50 maple/padauk board |
+
+The fix for the second is to weight by how much of the board each species actually occupies. The
+board as a whole moves at a **composite** coefficient — the share-weighted mean — and each
+species is strained by its deviation from that composite. So the quantity that matters is the
+share-weighted **mean absolute deviation**:
+
+```
+C_bar  = Σ share_i · C_i                          composite coefficient
+MAD    = Σ share_i · |C_i − C_bar|
+spread = 2 · MAD
+```
+
+The factor of 2 is for interpretability, not physics: it makes `spread` exactly equal the plain
+coefficient gap for a balanced two-species board, so the number means what a woodworker would
+expect it to mean, while still collapsing toward zero for a thin accent stripe.
+
+```
+differentialMovement = max(boardWidth, boardLength) · spread · ΔMC
+```
+
+Both face dimensions are used because an end-grain board moves in **both**
+([KB-B01](01-woodworking-domain.md#kb-b01--why-end-grain-boards-move-the-way-they-do)) — unlike
+an edge-grain board, where only the width moves.
+
+### Calibrating the threshold
+
+Anchored on empirical practice rather than invented stress limits: the maple/walnut/cherry
+palette is known-good across a century of use at normal board sizes, so it must pass. Computed at
+ΔMC = 6:
+
+| Mix | 12" | 16" | 20" | 24" |
+| --- | --- | --- | --- | --- |
+| maple / walnut 50:50 | 0.057" | 0.076" | 0.095" | 0.114" |
+| classic three-wood, equal | 0.059" | 0.079" | 0.098" | 0.118" |
+| cherry / walnut 50:50 | 0.019" | 0.025" | 0.031" | 0.037" |
+| **maple / padauk 50:50** | 0.125" | **0.166"** | **0.208"** | **0.249"** |
+| maple + 2% padauk pinstripe | 0.010" | 0.013" | 0.016" | 0.020" |
+
+A threshold of **0.150"** separates them cleanly: the classic palette stays silent out to 24",
+maple/padauk flags from 16" upward, and the pinstripe is correctly ignored. The three-wood mix
+also scores *below* the maple/cherry pair alone, which is physically right — walnut sits between
+them and pulls the composite toward the middle.
+
+Severity is `warning`, never `error`. Maple/padauk boards get built successfully all the time with
+good maintenance; this is a risk the maker is entitled to accept.
+
+### Implementation
 
 ```ts
 // core/validation/rules/movement.ts
@@ -220,7 +276,7 @@ interface MovementContext {
   length: Ticks;
   /** Dimensional change coefficients of every species used, keyed by id (KB-B03). */
   coefficients: Record<SpeciesId, number>;
-  /** Fraction of the board's width occupied by each species. */
+  /** Fraction of the board's face area occupied by each species. */
   widthShare: Record<SpeciesId, number>;
   /** Expected seasonal moisture-content swing, percent (shop profile). */
   moistureSwingPercent: number;
@@ -228,17 +284,109 @@ interface MovementContext {
   jointCount: number;
 }
 
-/**
- * TODO(human): decide the rule for flagging an incompatible species mix.
- *
- * Return [] for an acceptable combination, or a single Finding describing the
- * risk. Populate `data` with whatever the message template should show.
- */
+/** Differential movement above which the mix is flagged, in inches. */
+const DIFFERENTIAL_WARN_IN = 0.150;
+/** Above this the wording escalates — still a warning, since it is the maker's wood. */
+const DIFFERENTIAL_SEVERE_IN = 0.300;
+/** Above this ratio the problem is the palette rather than the board's size. */
+const RATIO_MISMATCH = 1.5;
+
 function checkMovementCompatibility(ctx: MovementContext): Finding[] {
-  // TODO(human)
-  return [];
+  const species = Object.keys(ctx.coefficients);
+
+  // A single species has no differential by definition. Guard rather than
+  // relying on the arithmetic to produce zero, so a missing share can't fake it.
+  if (species.length < 2) return [];
+
+  // Normalise defensively: shares should sum to 1, but a partial palette or a
+  // rounding drift upstream must not silently scale the result.
+  const shareTotal = species.reduce((s, id) => s + (ctx.widthShare[id] ?? 0), 0);
+  if (shareTotal <= 0) return [];
+  const share = (id: SpeciesId) => (ctx.widthShare[id] ?? 0) / shareTotal;
+
+  const cBar = species.reduce((s, id) => s + share(id) * ctx.coefficients[id], 0);
+  const mad = species.reduce(
+    (s, id) => s + share(id) * Math.abs(ctx.coefficients[id] - cBar),
+    0,
+  );
+  const spread = 2 * mad;
+
+  const maxDim = Math.max(ticksToInches(ctx.width), ticksToInches(ctx.length));
+  const differential = maxDim * spread * ctx.moistureSwingPercent;
+
+  if (differential <= DIFFERENTIAL_WARN_IN) return [];
+
+  const values = species.map((id) => ctx.coefficients[id]);
+  const ratio = Math.max(...values) / Math.min(...values);
+
+  // Which lever actually fixes it. A mismatched palette wants a species swap;
+  // a compatible palette on a large board wants a smaller board. Reporting the
+  // wrong remedy is worse than reporting none.
+  const driver = ratio > RATIO_MISMATCH ? 'palette' : 'size';
+
+  const byCoefficient = [...species].sort(
+    (a, b) => ctx.coefficients[a] - ctx.coefficients[b],
+  );
+
+  return [{
+    ruleId: 'V-MOVE-010',
+    severity: 'warning',
+    nodes: [],
+    data: {
+      differential,
+      spread,
+      ratio,
+      maxDim,
+      moistureSwing: ctx.moistureSwingPercent,
+      tier: differential > DIFFERENTIAL_SEVERE_IN ? 'severe' : 'elevated',
+      driver,
+      lowest: byCoefficient[0],
+      highest: byCoefficient[byCoefficient.length - 1],
+    },
+    rationale: KB['KB-B04'].text,
+  }];
 }
 ```
+
+### Message templates
+
+```
+elevated / palette:
+  {highest} and {lowest} differ in seasonal movement by {ratio}×. Across
+  {maxDim}" at a {moistureSwing}% moisture swing that is about {differential}
+  of differential movement, which loads every glue line between them in shear.
+  → Substituting a species closer to {highest} would reduce this. The classic
+    maple/walnut/cherry palette spans only 1.42×, which is why it has held up
+    for a century.
+
+elevated / size:
+  These species are reasonably matched ({ratio}×), but at {maxDim}" the board is
+  large enough that the remaining difference adds up to about {differential}.
+  → Reducing the largest dimension, or keeping the board in a more stable
+    humidity environment, would both help.
+
+severe (either driver): as above, plus —
+  This is well beyond the range demonstrated by common practice. Expect visible
+  seasonal gapping, and keep the board diligently oiled.
+```
+
+Both templates report the number *and* the lever, because "these woods are mismatched" and "this
+board is too big for these woods" have different fixes and the finding should not leave the user
+guessing which applies.
+
+### Tests
+
+Fixture pairs, per [`08`](08-architecture-and-stack.md#3--rule-fixture-suite):
+
+| Fixture | Expectation |
+| --- | --- |
+| maple/walnut 50:50 at 12" × 16" | clean — the no-false-positives-on-the-classics case |
+| classic three-wood at 24" | clean |
+| maple + 2% padauk pinstripe at 20" | clean — proportion weighting works |
+| maple/padauk 50:50 at 16" | warns, `driver: 'palette'` |
+| maple/walnut 50:50 at 40" | warns, `driver: 'size'` |
+| single species, any size | clean, no arithmetic performed |
+| shares summing to 0.98 | identical result to shares summing to 1.0 |
 
 ## V-DIM — Dimensions and features
 

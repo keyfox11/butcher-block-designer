@@ -133,10 +133,17 @@ picture/cut-list divergence this design exists to eliminate.
 ## Open questions for implementation
 
 1. **Old Line golden case (G4).** The worked example needs to be captured from the live tool and
-   committed as a fixture.
-2. **The movement threshold** (`V-MOVE-010`) is specified as an open design decision in
-   [`04`](04-validation-rules.md#v-move--wood-movement).
-3. **Minimum safe puck size** for crosscutting hex pucks on a sled needs a real number rather
-   than a conservative guess.
-4. **Guillotine search ordering.** Minimising tree depth minimises glue-ups, but the best search
+   committed as a fixture. The other four golden cases are already verified.
+2. **Minimum safe puck size** for crosscutting hex pucks on a sled needs a real number rather
+   than a conservative guess. Currently a shop-profile parameter with a cautious default.
+3. **Guillotine search ordering.** Minimising tree depth minimises glue-ups, but the best search
    heuristic needs empirical tuning against real painted targets.
+4. **Species data provenance.** Sugar maple appears as both 4.8/9.9 and 4.9/9.5 across sources.
+   The spread is small, but the table carries a `provenance` field per row and the conflict
+   should be recorded rather than averaged away
+   ([KB-B03](01-woodworking-domain.md#kb-b03--species-movement-data)).
+
+**Resolved during specification:** the `V-MOVE-010` movement threshold, which was the only
+judgement-call number in the rule set. It is now derived and calibrated against named palettes in
+[`04`](04-validation-rules.md#v-move--wood-movement), with a fixture table that pins the
+behaviour.

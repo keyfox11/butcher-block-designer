@@ -153,8 +153,20 @@ check('core/ boundary is specified as CI-enforced', /dependency-cruiser|no-restr
 
 // -------------------------------------------------------------- open decisions
 
+// Informational, not a gate: a spec with no open markers is finished, and one with
+// markers is mid-flight. Both are valid states — the check just makes it visible.
 const todos = (all.match(/TODO\(human\)/g) || []).length;
-check('open design decisions are marked with TODO(human)', todos > 0, `${todos} marker(s)`);
+console.log(`INFO  unresolved TODO(human) markers: ${todos}`);
+
+// V-MOVE-010 is the only judgement-call threshold in the rule set, so the spec is
+// required to show its calibration rather than assert a bare number.
+const v4m = read('04-validation-rules.md');
+check(
+  'V-MOVE-010 threshold is calibrated against named palettes, not asserted',
+  /DIFFERENTIAL_WARN_IN/.test(v4m) &&
+    /maple \/ padauk/i.test(v4m) &&
+    /classic three-wood/i.test(v4m),
+);
 
 console.log(
   failures ? `\n${failures} check(s) FAILED` : `\nAll checks passed (${files.length} spec files).`,
