@@ -337,6 +337,11 @@ interface Project {
     name: string;
     created: string;   // ISO 8601
     modified: string;
+    /**
+     * Imperial only for now (decision, 2026-10-06). The union is kept because
+     * Ticks is unit-agnostic and parse/format is the only boundary that knows
+     * about units — so metric stays reversible without being built.
+     */
     units: 'imperial' | 'metric';
     /** Rounding target for displayed dimensions. Default 1/32". */
     measurementPrecision: Ticks;

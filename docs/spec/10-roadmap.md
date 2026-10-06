@@ -101,7 +101,7 @@ receive a clear refusal naming the offending regions — never a silent approxim
 - Onboarding flow
 - Care sheet export
 - Accessibility pass: hatch patterns throughout, keyboard navigation, screen-reader findings
-- Metric mode as a first-class mode
+- *(Metric mode is out of scope — see [`06`](06-design-surface-ux.md#dimension-input))*
 - Performance pass against the targets in [`08`](08-architecture-and-stack.md#performance-targets)
 
 **Exit criterion.** A first-time user reaches a plausible, validated board in under a minute,

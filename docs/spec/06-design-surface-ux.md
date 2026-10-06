@@ -173,8 +173,13 @@ formatDimension(1500)     // "1 1/2""
 - When an underlying value is not representable at that precision, the field shows the rounded
   value **and** the residual — `1 1/2" (+0.003")` — so a solved size-exact dimension never lies
   ([`05`](05-cut-list-and-instructions.md#cell-exact-vs-size-exact)).
-- Metric mode is a real mode, not a conversion display: input, storage rounding, and output all
-  work in millimetres.
+**Metric is out of scope for now** (decision, 2026-10-06). The tool is imperial-only: fractional
+inches throughout. This is a real scope saving — a genuine metric mode means dual parsing,
+rounding, display, and a doubled test matrix, not a conversion on output.
+
+The `Ticks` model is unit-agnostic underneath (it is just an integer count), so the decision is
+reversible. Parse and format are the only places that know about units, and keeping them as the
+single boundary is what preserves that option without paying for it now.
 
 ## Shop profile
 

@@ -25,6 +25,27 @@ Deliberately **not** included:
 - **A backend.** Local-first. Project files and shareable URLs cover persistence
   ([`09`](09-exports.md)).
 
+## Deployment
+
+**GitHub Pages** (decision, 2026-10-06). The app is a fully static, local-first SPA with no
+backend, so Pages is sufficient and needs no additional account.
+
+Two consequences that have to be settled before the first build rather than retrofitted:
+
+| Concern | Handling |
+| --- | --- |
+| **Base path** | Pages serves from `/<repo>/`, so Vite needs `base: '/butcher-block-designer/'`. Hardcoding absolute asset paths anywhere will break the deploy. |
+| **Client-side routes** | Shared design URLs are `/d/<version>.<payload>` ([`09`](09-exports.md#shareable-urls)). Pages has no rewrite rules, so a deep link 404s on refresh. |
+
+The route problem has a standard fix — a `404.html` that redirects into `index.html` with the
+original path preserved — but the simpler option is worth taking first: encode the design in the
+**hash fragment** (`/#/d/3.<payload>`) rather than the path. The fragment is never sent to the
+server, so it cannot 404, it survives refresh and bookmarking, and it keeps the shared-link
+feature working on any static host without per-host configuration.
+
+Deploy via a GitHub Actions workflow on push to `main`, running `tools/check-spec.mjs` and the
+test suite as gates before publishing.
+
 ## Module boundaries
 
 ```

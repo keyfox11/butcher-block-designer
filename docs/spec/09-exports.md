@@ -85,11 +85,18 @@ CBDJS has this feature and it is genuinely one of its best. Ours differs in two 
 it is **versioned**, and it deliberately **omits the shop profile**.
 
 ```
-https://<host>/d/3.<base64url(deflate(cbor(payload)))>
+https://<host>/#/d/3.<base64url(deflate(cbor(payload)))>
 ```
 
 The leading `3.` is the schema version, outside the compressed blob so a decoder can dispatch
 before attempting to decompress.
+
+**The design lives in the hash fragment, not the path.** Deploy target is GitHub Pages
+([`08`](08-architecture-and-stack.md#deployment)), which is a static host with no rewrite rules,
+so a deep link on a path would 404 on refresh. A fragment is never sent to the server: it cannot
+404, it survives refresh and bookmarking, and the feature keeps working on any static host with
+no per-host configuration. It also keeps the design payload out of server access logs, which is a
+small privacy bonus.
 
 ### The payload omits the shop profile
 
