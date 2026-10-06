@@ -142,6 +142,19 @@ export interface LaminateOp {
   readonly kind: 'laminate';
   readonly members: readonly LaminateMember[];
   /**
+   * How members are positioned.
+   *
+   * `explicit` uses each member's own offset -- right for a grid, where the
+   * designer chooses the layout.
+   *
+   * `butted` ignores the offsets and pushes members together along x until
+   * their mating edges coincide, which is what clamps actually do. Required
+   * once any cut is bevelled: slanted strips interlock, so their bounding
+   * boxes overlap and an explicit offset would have to re-derive the
+   * trigonometry in every generator.
+   */
+  readonly placement?: 'explicit' | 'butted';
+  /**
    * Angled joints convert clamp pressure into lateral force and slide, so they
    * are glued row by row with a cure between rows (KB-A11).
    */

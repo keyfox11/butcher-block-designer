@@ -277,9 +277,18 @@ export function sawCutEdges(extent: BoundingBox, cut: SawCut): CutEdges {
   // distance k / cos(bevel).
   const horizontalKerf = cut.kerf / Math.cos(toRadians(cut.bevel));
 
-  const span = Math.max(extent.maxY - extent.minY, 1);
-  const top = extent.maxY + span;
-  const bottom = extent.minY - span;
+  // Anchor the line exactly at the workpiece's own top and bottom, and round
+  // it THERE.
+  //
+  // Clipping uses an infinite line, so the anchors need not extend past the
+  // polygon -- and anchoring outside it is actively harmful. Every strip in
+  // this model has flat top and bottom faces, so those are precisely where the
+  // cut crosses the boundary. Rounded at the crossings, the crossings are the
+  // anchors and a bevelled cut is EXACT; rounded somewhere further out, each
+  // crossing is interpolated and re-rounded, and the sub-tick residue
+  // accumulates across every face of every slice.
+  const top = extent.maxY;
+  const bottom = extent.minY;
 
   const edge = (offset: number) => ({
     a: point(Math.round(cut.atBase + offset + bottom * tilt), bottom),

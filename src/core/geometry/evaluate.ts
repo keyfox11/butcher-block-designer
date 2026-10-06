@@ -21,6 +21,9 @@ import {
   assertTiling,
   cutPartition,
   laminate,
+  laminateButted,
+  leftEdgeAtTableFace,
+  profileAt,
   normalisePartition,
   mirrorPartition,
   partitionBounds,
@@ -258,16 +261,41 @@ function evalOp(
       let remaining = source.crossSection;
 
       op.strips.forEach((strip, index) => {
-        const bounds = partitionBounds(remaining);
         const cut = cutPartition(remaining, {
-          atBase: bounds.minX + strip.width,
+          // A fence is set from the edge it touches, at the table face. Using
+          // the bounding-box minimum instead is wrong whenever the left edge
+          // leans away from the table, which is what broke varying-angle
+          // patterns while uniform ones happened to work.
+          atBase: leftEdgeAtTableFace(remaining) + strip.width,
           bevel: strip.bevel,
           kerf: shop.kerf,
         });
 
         const before = faceVolumes(remaining, source.length);
+        if (cut.keep.faces.length === 0) {
+          throw new GeometryError(
+            `Node ${id}: strip ${index + 1} has no material left to cut; the stock is too narrow`,
+          );
+        }
         const keptPiece = normalisePartition(cut.keep);
         assertTiling(keptPiece, `${id} strip ${index}`);
+
+        // A rip must refuse rather than hand back whatever was left. A bevelled
+        // cut drifts sideways by thickness x tan(bevel) as it crosses the
+        // panel, so stock sized from table-face widths alone runs out at the
+        // top face and silently truncates the last strip to the wrong SHAPE --
+        // which conserves mass perfectly and so slips past that check.
+        const keptBounds = partitionBounds(cut.keep);
+        const actualWidth =
+          (profileAt(cut.keep.outline, keptBounds.minY, 'right') ?? 0) -
+          leftEdgeAtTableFace(cut.keep);
+        if (actualWidth < strip.width - 1) {
+          throw new GeometryError(
+            `Node ${id}: strip ${index + 1} came out ${actualWidth} ticks wide at the table face ` +
+              `but ${strip.width} was requested — the stock is too narrow. A bevelled cut needs ` +
+              'extra width for the sideways drift across the thickness.',
+          );
+        }
 
         outputs.push({
           crossSection: retagPieces(keptPiece, `${id}-s${index}`),
@@ -347,6 +375,7 @@ function evalOp(
     }
 
     case 'laminate': {
+      const butted = op.placement === 'butted';
       const members = op.members.map((m) => {
         const piece = resolve(m.piece);
         let partition = normalisePartition(piece.crossSection);
@@ -354,7 +383,9 @@ function evalOp(
         if (m.mirrored) partition = mirrorPartition(partition);
         return {
           piece,
-          partition: translatePartition(partition, m.offset.x, m.offset.y),
+          // Butted members are positioned by their mating edges, so their own
+          // offsets are ignored rather than compounded with the placement.
+          partition: butted ? partition : translatePartition(partition, m.offset.x, m.offset.y),
         };
       });
 
@@ -369,8 +400,10 @@ function evalOp(
       const first = members[0];
       if (!first) throw new GeometryError(`Node ${id}: laminate has no members`);
 
-      const result = laminate(members.map((m) => m.partition));
-      if (Math.abs(result.gapArea) > 1) {
+      const result = butted
+        ? laminateButted(members.map((m) => m.partition))
+        : laminate(members.map((m) => m.partition));
+      if (Math.abs(result.gapArea) > result.tolerance) {
         throw new GeometryError(
           `Node ${id}: laminate members leave a ${result.gapArea > 0 ? 'gap' : 'overlap'} of ` +
             `${Math.abs(result.gapArea)} sq ticks`,
