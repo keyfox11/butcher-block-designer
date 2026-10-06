@@ -399,6 +399,40 @@ Both templates report the number *and* the lever, because "these woods are misma
 board is too big for these woods" have different fixes and the finding should not leave the user
 guessing which applies.
 
+### `V-MOVE-020` and `V-MOVE-030` — absolute movement
+
+Both read the **composite** coefficient rather than the spread, since they are about how much the
+board moves rather than how unevenly:
+
+```
+movement = max(boardWidth, boardLength) · C_bar · ΔMC
+```
+
+`V-MOVE-020` states it from **1/8"** upward, as `info`. That is where movement starts to matter for
+anything that has to fit — a drawer, a sink cut-out, a snug shelf — and where feet need slotted
+holes. It is deliberately not a warning: a 12" maple board moving a quarter inch is *normal*
+(KB-B04), and a tool that alarms about normal behaviour teaches people to ignore it.
+
+`V-MOVE-030` warns above **5/8"**. This is the one threshold in the movement rules **chosen rather
+than derived**, so the reasoning is recorded. Half an inch is a 24" maple board at a 6% swing, and
+boards that size get built regularly and last decades, so the line has to sit above it. Five
+eighths is a 30" maple board, which is past cutting-board practice and into furniture butcher-block
+territory — where construction differs anyway: banding, breadboard ends, or a steel rod through the
+assembly.
+
+Because it scales with the composite coefficient rather than with raw inches, it allows a larger
+board in a gentler wood, which is what the rule's own title asks for — *far beyond typical for the
+species mix*. Cherry moves about 30% less than maple, so it earns roughly 12" more board before
+this fires.
+
+### Missing data is reported, not assumed
+
+Four species in the table carry `null` coefficients because no source was found to support a value.
+`V-MOVE-010` says so as an `info` finding and assesses the remainder, rather than dropping the
+species silently or substituting a plausible number. A confident wrong answer about wood movement
+is worse than no answer, and a verdict computed over two thirds of a board is not a verdict about
+that board.
+
 ### Tests
 
 Fixture pairs, per [`08`](08-architecture-and-stack.md#3--rule-fixture-suite):

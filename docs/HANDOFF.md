@@ -7,7 +7,7 @@ The spec in [`docs/spec/`](spec/) is the design. The commit messages carry the d
 for individual changes. This file carries what sits *between* them: why the code deviates from the
 spec where it does, which invariant catches which class of bug, and the traps that cost time.
 
-**Status:** P0, P1 and P2 complete. P3 is next. 443 tests, CI green.
+**Status:** P0, P1 and P2 complete. P3 is next. 482 tests, CI green.
 
 ---
 
@@ -21,8 +21,13 @@ spec where it does, which invariant catches which class of bug, and the traps th
 | P3 — free paint + decomposer | ⬜ next | |
 | P4 — edge treatments, polish | ⬜ | |
 
-Implemented: 14 patterns, 27 validation rules, cut list + allowance ledger + instructions +
+Implemented: 14 patterns, 30 validation rules, cut list + allowance ledger + instructions +
 assembly maps, 2-D canvas, 3-D viewport, share links, project files, shop profile UI.
+
+> **P2's exit criterion was met, but three items on P2's own list were not done**, and the summary
+> at the time said "P2 complete" without that. `V-MOVE-*` has since been implemented; custom species
+> and the tier-3 graph view have not. The distinction matters: the exit criterion is what defines
+> the phase, but the list is what someone reads to know what exists.
 
 ---
 
@@ -105,6 +110,21 @@ Added at P2, and it earned itself immediately: basket weave failed on the defaul
 because its tile is square and therefore half as long as a 2:1 tile. A user clicking it would have
 met an error. **A pattern that only works at hand-picked settings is a pattern that greets its
 first user with a crash.**
+
+### Setting liveness — catches a control that does nothing
+
+Added after the README audit, because of the gap it found. `moistureSwingPercent` sat in the shop
+profile, editable in the UI, **read by nothing** for three phases: the `V-MOVE-*` rules that
+consume it were specified and never implemented.
+
+That is worse than a missing feature. The user sets the moisture swing to 10%, sees no warning, and
+reasonably concludes the board was checked for seasonal movement. It was not.
+
+Nothing caught it, and the reason is worth keeping: the citation-integrity test checks that rules
+cite knowledge-base entries that exist. **There was no check in the other direction** — that every
+input the user can set is consumed by something. `shop-profile.test.ts` now pushes each setting to
+a hostile value and requires the generated plan to change. Three settings are still inert and are
+named in the test, so implementing one breaks it until the list is updated.
 
 ### Reading the generated output
 
@@ -234,6 +254,8 @@ and the machinery to say exactly which faces are unreachable already exists.
 | **Minimum safe puck size** | For crosscutting hex pucks on a sled. Still a conservative shop-profile default; the tumbling block now exercises it, so a real number is measurable. |
 | **Multi-stage material cost** | A tumbling block runs ~3.6× finished volume and herringbone ~3.1×, against KB-A12's 1.5–2.5× band for an ordinary end-grain board. `V-MAT-020` warns and now names where the wood goes. Whether the band should scale with pattern class is a judgement call left open rather than guessed. |
 | **Display precision vs fence settings** | At the default 1/32", a rip width of 1.7321" prints as 1 23/32" — 0.014" off. Fine for a grid pattern, marginal for a hexagon where the error compounds across three joints. Consider defaulting bevel-rip fence settings to 1/64". |
+| **`V-TOL-*` and two dead settings** | `toleranceBand()` exists in `core/units` and nothing calls it, so `perCutTolerance` is inert; `sledCapacity` and `clampMaxReach` likewise have no rule. All three are pinned by `shop-profile.test.ts` so they cannot be forgotten again. |
+| **Custom species, tier-3 graph view** | On P2's list, not built. The species table has 9 rows, 4 of them with `null` coefficients where no source was found. |
 | **Sugar maple provenance** | Sources give both 4.8/9.9 and 4.9/9.5. Recorded, not averaged. |
 | **Bundle size** | `BoardScene` chunk is ~1 MB (275 kB gzipped). Lazy-loaded, so it is off the first paint. |
 

@@ -189,6 +189,19 @@ export const KB: Readonly<Record<KbId, KbEntry>> = {
     sources: ['Sawmill Creek: grain orientation in end-grain boards', 'LumberJocks'],
   }),
 
+  'KB-B03': entry({
+    id: 'KB-B03',
+    title: 'Species movement data',
+    confidence: 'measured',
+    text:
+      'Each species has a dimensional change coefficient C: the fractional movement per 1% change ' +
+      'in moisture content, so movement = dimension × C × ΔMC. Hard maple 0.00353, black walnut ' +
+      '0.00274, black cherry 0.00248, purpleheart 0.00212, padauk 0.00180. Where no source ' +
+      'supports a value the table holds null and the movement check reports that it cannot ' +
+      'assess the mix — a confident wrong answer about wood movement is worse than no answer.',
+    sources: ['Engineers Edge shrinkage values', 'USDA Wood Handbook lineage'],
+  }),
+
   'KB-B04': entry({
     id: 'KB-B04',
     title: 'Seasonal movement',

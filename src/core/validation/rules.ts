@@ -6,36 +6,13 @@
  */
 
 import { boardDimensions } from '../geometry/evaluate.js';
-import { kb, type KbId } from '../knowledge/kb.js';
 import { SPECIES } from '../knowledge/species.js';
 import type { NodeId } from '../model/types.js';
 import { formatLimit, formatTicks, inches, ticks, toDegrees, toInches, toRadians } from '../units/ticks.js';
-import type { Finding, Rule, Severity, ValidationContext } from './types.js';
+import { finding } from './finding.js';
+import { MOVEMENT_RULES } from './movement.js';
+import type { Finding, Rule, ValidationContext } from './types.js';
 
-function finding(
-  rule: { id: string; cites: readonly KbId[] },
-  severity: Severity,
-  parts: {
-    nodes?: readonly NodeId[];
-    message: string;
-    remedy: string;
-    data?: Record<string, unknown>;
-    dedupeKey?: string;
-  },
-): Finding {
-  const primary = rule.cites[0];
-  return {
-    ruleId: rule.id,
-    severity,
-    nodes: parts.nodes ?? [],
-    message: parts.message,
-    remedy: parts.remedy,
-    rationale: primary ? kb(primary).text : '',
-    cites: rule.cites,
-    data: parts.data ?? {},
-    ...(parts.dedupeKey === undefined ? {} : { dedupeKey: parts.dedupeKey }),
-  };
-}
 
 /* -------------------------------------------------------------------------- */
 /* V-SAFE — always blocking                                                    */
@@ -994,4 +971,5 @@ export const RULES: readonly Rule[] = [
   MAT_010,
   MAT_020,
   MAT_040,
+  ...MOVEMENT_RULES,
 ];

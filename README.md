@@ -8,7 +8,7 @@ board feet, a cut list with fence settings, step-by-step build instructions, per
 maps, and a 3-D preview. It refuses to generate a plan it believes is unbuildable, and it tells
 you why.
 
-> **Status: working tool, P2 complete.** 14 patterns, 27 validation rules, 443 tests, CI green.
+> **Status: working tool, P2 complete.** 14 patterns, 30 validation rules, 482 tests, CI green.
 > P3 — the free-paint canvas and its decomposer — is next.
 >
 > **Picking this up cold? Read [`docs/HANDOFF.md`](docs/HANDOFF.md) first.** It covers which
@@ -100,10 +100,16 @@ its own internal pattern. The 3D cube derives everything from a single number �
 thickness — via the closure condition `ripWidth = T / cos 30°`, which makes the hexagon exactly
 `2T` across the flats.
 
-**27 validation rules** across seven categories — safety, tooling envelope, geometry, grain
-orientation, dimensions, food safety, material budget. Errors block export; the cut list is what
-somebody takes to the saw. Every rule cites a knowledge-base entry, and that citation is enforced
-by a test.
+**30 validation rules** across eight categories — safety, tooling envelope, geometry, grain
+orientation, wood movement, dimensions, food safety, material budget. Errors block export; the cut
+list is what somebody takes to the saw. Every rule cites a knowledge-base entry, and that citation
+is enforced by a test.
+
+Wood movement is the one area where the thresholds are judgement calls rather than machine limits
+or geometric facts, so they are calibrated against palettes with a known track record instead of
+invented stress limits: the classic maple/walnut/cherry mix must stay silent out to 24", a 50:50
+maple/padauk board must flag from 16" up, and a 2% padauk pinstripe must be ignored. The derivation
+and the calibration table are in [`04`](docs/spec/04-validation-rules.md#v-move--wood-movement).
 
 **Output.** Shopping list in board feet; an allowance ledger tracing every finished dimension back
 to rough stock; a cut list reporting fence settings rather than abstract offsets; phased build
@@ -122,9 +128,8 @@ gaps that matter:
 
 | Gap | Where |
 | --- | --- |
-| **`V-MOVE-*` — wood-movement validation (3 rules)** | Specified in [`04`](docs/spec/04-validation-rules.md); not implemented. `moistureSwingPercent` is editable in the Shop panel and currently **read by nothing**. |
-| `V-TOL-*` — accumulated tolerance (2 rules) | Specified; not implemented. |
-| Sled capacity and clamp reach checks | `sledCapacity` and `clampMaxReach` are in the shop profile; no rule reads them. |
+| `V-TOL-*` — accumulated tolerance (2 rules) | Specified; not implemented. `toleranceBand()` exists in `core/units` and nothing calls it, so `perCutTolerance` is inert. |
+| Sled capacity and clamp reach checks | `sledCapacity` and `clampMaxReach` sit in the shop profile with no rule behind them. |
 | `V-GEOM-040` constructibility proof | Narrowed to a clampability check. The full decomposition *is* the P3 decomposer and should be built once, there. |
 | Free-paint canvas, image import, decomposer | P3. |
 | Graph view (tier 3), custom species | Specified; not built. The species table has 9 entries with provenance. |
@@ -179,7 +184,13 @@ is **absent from the operation type**, so it is unrepresentable rather than mere
 the operation at fault. The faces of every cross-section must tile their outline. A non-grid
 lay-up's gaps are found *topologically* — a missing cell is an enclosed ring, located exactly,
 rather than a number that has to beat a tolerance. Property-based tests over randomly generated
-graphs; 443 tests in total.
+graphs; 482 tests in total.
+
+Settings are checked for *liveness*: every field in the shop profile is pushed to a hostile value
+and the generated plan must change. A knob the user can set that nothing reads is worse than an
+absent one — it implies the board was checked against something it was not. The three settings that
+are still inert are listed in the test by name, and implementing one breaks the test until the list
+is updated.
 
 **4. The spec is checked mechanically.**
 
