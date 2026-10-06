@@ -28,7 +28,8 @@ Confidence is marked on every entry:
 
 ## Part A — Construction methods
 
-### KB-A01 — The two-stage glue-up **[consensus]**
+### KB-A01 — The two-stage glue-up
+**[consensus]**
 
 The canonical end-grain board. Three stages in practice:
 
@@ -41,7 +42,8 @@ The canonical end-grain board. Three stages in practice:
 The pattern on the finished face is the *cross-section* of the stage-1 panel. This is the single
 most important thing to internalise, and the reason the tool exists.
 
-### KB-A02 — The dimensional relationships **[derived]**
+### KB-A02 — The dimensional relationships
+**[derived]**
 
 Set up coordinates on the stage-1 panel:
 
@@ -85,7 +87,8 @@ leftover = L - (n * s + (n - 1) * kerf)
 The `+1` correction matters: the naive floor assumes a kerf after the final slice, which does not
 exist, and so under-counts by one whenever the remainder is between `s` and `s + kerf`.
 
-### KB-A03 — Golden case 1 — CBDJS defaults **[derived]**
+### KB-A03 — Golden case 1 — CBDJS defaults
+**[derived]**
 
 A verification anchor, not an illustration. CBDJS's published defaults and their output:
 
@@ -109,7 +112,8 @@ CBDJS reports **slices 12, end-grain length 14.4, leftover 0.625, width 6**. All
 exactly. Any implementation of KB-A02 must reproduce this; it is golden test #1 in
 [`08`](08-architecture-and-stack.md#testing-strategy).
 
-### KB-A04 — Multi-stage sub-assemblies **[consensus]**
+### KB-A04 — Multi-stage sub-assemblies
+**[consensus]**
 
 Stages 1 and 2 can nest. A stage-2 block can itself be ripped, crosscut, and re-glued as the
 input to a further stage. This is how true herringbone, basket weave, and pinwheel patterns are
@@ -117,7 +121,8 @@ built, and it is precisely what a flat layer-stack model cannot express.
 
 The operation vocabulary in [`02`](02-construction-graph.md) is recursive for this reason.
 
-### KB-A05 — The hexagonal-prism method (3D tumbling block) **[derived]**
+### KB-A05 — The hexagonal-prism method (3D tumbling block)
+**[derived]**
 
 The 3D cube board is **not** built with the two-stage method and is not a grid. Per
 [This Old House](https://www.thisoldhouse.com/kitchens/22713645/how-to-make-cube-cutting-board):
@@ -166,7 +171,8 @@ will not read as cubes.
 - Three rhombi glued around a shared line cannot be clamped conventionally — the pieces slide.
   Painter's tape as a tension wrap is the documented technique.
 
-### KB-A06 — Angled layer boundaries (bevel-ripped strips) **[derived]**
+### KB-A06 — Angled layer boundaries (bevel-ripped strips)
+**[derived]**
 
 CBDJS's "trailing angle" is a bevel rip. Its source computes a layer's far-face boundary as:
 
@@ -196,7 +202,8 @@ b_i  - a_i  > minSafeRipWidth   AND   b_i' - a_i' > minSafeRipWidth
 A strip that tapers to zero inside the panel is not a warning — it is a cut the saw cannot make.
 See rule `V-GEOM-030` in [`04`](04-validation-rules.md).
 
-### KB-A07 — Mitered crosscuts produce oblique prisms **[derived]**
+### KB-A07 — Mitered crosscuts produce oblique prisms
+**[derived]**
 
 Crosscutting the panel at a miter angle `μ` off perpendicular is tempting for herringbone. It
 has a real cost that no reference tool mentions.
@@ -219,7 +226,8 @@ Consequences:
 **Recommendation:** prefer true multi-stage herringbone (KB-A04), which keeps grain perpendicular
 by composing rectangles in two orientations. Support miter, but warn (`V-GRAIN-020`).
 
-### KB-A08 — Flattening: the hard safety gate **[consensus]**
+### KB-A08 — Flattening: the hard safety gate
+**[consensus]**
 
 > **Never run an end-grain glue-up through a thickness planer.**
 
@@ -239,7 +247,8 @@ Default **flattening allowance 1/8" per face** (Old Line's default), so `+1/4"` 
 the crosscut slice width. This is why `s` is cut oversize: see the allowance ledger in
 [`05`](05-cut-list-and-instructions.md#the-allowance-ledger).
 
-### KB-A09 — Squareness: crosscuts decide whether the board has gaps **[consensus]**
+### KB-A09 — Squareness: crosscuts decide whether the board has gaps
+**[consensus]**
 
 An out-of-square crosscut is the dominant cause of gapped stage-2 glue-ups. Each slice's error
 doubles when adjacent slices are flipped, and errors accumulate across the glue-up.
@@ -249,7 +258,8 @@ doubles when adjacent slices are flipped, and errors accumulate across the glue-
 - **"Clamping pressure will not cure a poor cut."** Forcing a bad joint closed stores stress that
   reappears as a split later.
 
-### KB-A10 — Glue: choice, sizing, and pressure **[measured]** / **[consensus]**
+### KB-A10 — Glue: choice, sizing, and pressure
+**[measured]** / **[consensus]**
 
 **Titebond III** is the practical standard: waterproof (ANSI/HPVA Type I), FDA-approved for
 indirect food contact, ~4,000 psi bond strength, long open assembly time.
@@ -275,7 +285,8 @@ plenty of sound boards are built with less. Under-clamping usually shows as visi
 rather than outright failure. The tool should **report the number and the assumption**, not
 refuse the design.
 
-### KB-A11 — Glue-up sequencing for angled assemblies **[consensus]**
+### KB-A11 — Glue-up sequencing for angled assemblies
+**[consensus]**
 
 Joints that are not perpendicular to the clamping axis convert clamp pressure into *lateral*
 force, so pieces slide out of registration. For angled patterns (KB-A06) and the hexagonal method
@@ -285,7 +296,8 @@ force, so pieces slide out of registration. For angled patterns (KB-A06) and the
 - Use cauls to keep faces coplanar; a stepped glue-up wastes flattening allowance.
 - Tape-as-tension is the technique for hex prisms, which cannot be clamped squarely at all.
 
-### KB-A12 — Material budget **[consensus]**
+### KB-A12 — Material budget
+**[consensus]**
 
 End-grain construction consumes **1.5–2.5×** the lumber of an equivalent edge-grain board,
 because the panel length is spent on slice width plus a kerf per slice, and because the panel
@@ -305,7 +317,8 @@ Waste factors by stock grade: clear S4S with straight cuts 12–15%; typical mix
 
 ## Part B — Wood movement and structure
 
-### KB-B01 — Why end-grain boards move the way they do **[derived]**
+### KB-B01 — Why end-grain boards move the way they do
+**[derived]**
 
 Wood moves very differently along its three axes:
 
@@ -329,7 +342,8 @@ grow and shrink in two directions at once, and it has glue lines running in two 
 It is why these boards must be thick, why they crack more readily than edge-grain boards, and why
 species and grain orientation have to be controlled rather than mixed casually.
 
-### KB-B02 — Grain orientation must be *consistent* (the counterintuitive rule) **[consensus]**
+### KB-B02 — Grain orientation must be *consistent* (the counterintuitive rule)
+**[consensus]**
 
 > In edge-grain panels you **alternate** growth-ring direction so cupping cancels out.
 > In end-grain boards you must do the **opposite** — keep ring orientation **consistent**, and
@@ -347,7 +361,8 @@ board that fails.
 Practical guidance: select strips with rings running as close to 90° or parallel to one edge as
 possible; quartersawn moves roughly half as much as flatsawn and is the better choice throughout.
 
-### KB-B03 — Species movement data **[measured]**
+### KB-B03 — Species movement data
+**[measured]**
 
 The dimensional change coefficient `C` gives fractional movement per 1% change in moisture
 content over the usable 6–14% MC range:
@@ -375,7 +390,8 @@ holds, which is a useful guard when adding species.
 small but real; the data table carries a `provenance` field per row and the UI shows it on hover.
 Do not silently average conflicting sources.
 
-### KB-B04 — Worked movement example **[derived]**
+### KB-B04 — Worked movement example
+**[derived]**
 
 A 12"-wide board in a kitchen cycling from 6% MC (heated winter) to 12% MC (humid summer),
 `ΔMC = 6`:
@@ -399,7 +415,8 @@ Two readings of this table, both important:
 The threshold at which this becomes a warning is a design decision — see
 [`04-validation-rules.md`](04-validation-rules.md), rule `V-MOVE-010`.
 
-### KB-B05 — Failure modes **[consensus]**
+### KB-B05 — Failure modes
+**[consensus]**
 
 Why end-grain boards fail, with the cause the tool can actually act on:
 
@@ -416,7 +433,8 @@ Why end-grain boards fail, with the cause the tool can actually act on:
 Water enters end grain far faster than long grain — the fibre ends are open straws. That is both
 why these boards need diligent oiling and why the underside needs airflow.
 
-### KB-B06 — Food safety **[consensus]** / **[contested]**
+### KB-B06 — Food safety
+**[consensus]** / **[contested]**
 
 Three classes, carried as data so the UI can gate and explain:
 
@@ -443,7 +461,8 @@ and allergen exposure is not the maker's risk to take.
 
 ## Part C — Dimensions and features
 
-### KB-C01 — Thickness **[consensus]**
+### KB-C01 — Thickness
+**[consensus]**
 
 | Requirement | Minimum |
 | --- | --- |
@@ -454,7 +473,8 @@ Below 1.5" an end-grain board does not have the section to resist splitting — 
 closer to splitting firewood than to flexing a plank. Thickness is set by the crosscut (KB-A02),
 so it is cheap to add at design time and impossible to add later.
 
-### KB-C02 — Juice groove **[consensus]**
+### KB-C02 — Juice groove
+**[consensus]**
 
 | Parameter | Value |
 | --- | --- |
@@ -469,7 +489,8 @@ others: `3/8" / 1.5" = 25%` exactly, which is why a grooved board wants to be th
 
 A groove cut into end grain exposes a large area of open fibre and needs oiling attention.
 
-### KB-C03 — Feet **[consensus]**
+### KB-C03 — Feet
+**[consensus]**
 
 Rubber or silicone feet at four corners, fixed with stainless screws. Not cosmetic: they create
 an airflow gap so the underside does not sit in trapped moisture, which is a direct cause of
@@ -478,12 +499,19 @@ cupping and splitting (KB-B05).
 Screws must not be in a pattern that fights seasonal movement (KB-B04) — corners only, not a rail
 across the width.
 
-### KB-C04 — Edge treatment **[consensus]**
+### KB-C04 — Edge treatment
+**[consensus]**
 
 A chamfer or roundover on all edges, and especially on the underside lift edges. Sharp end-grain
 arrises are fragile and chip. A 45° bevel on the bottom edges also makes a heavy board liftable.
 
-### KB-C05 — Moisture content and acclimation **[consensus]**
+**Tooling note.** A chamfer is cuttable on the table saw as a 45° bevel rip, so it is available in
+the baseline shop. A roundover needs a router, and so does a juice groove (KB-C02); feet need a
+drill. These are optional shop-profile entries, and selecting a feature without the tool produces
+`V-TOOL-090` rather than an instruction the builder cannot follow.
+
+### KB-C05 — Moisture content and acclimation
+**[consensus]**
 
 Use kiln-dried or properly air-dried stock. Let it acclimate in the shop before milling, and keep
 **glue and wood at the same temperature** through the glue-up — thermal differences change open
@@ -499,7 +527,8 @@ This cannot be corrected later and is worth a blocking checklist item in the ins
 Our shop profile is **table saw + crosscut sled + drum sander**. These are the limits the
 validator enforces.
 
-### KB-D01 — Table saw cut depth falls off with bevel **[measured]**
+### KB-D01 — Table saw cut depth falls off with bevel
+**[measured]**
 
 A tilted blade loses vertical reach. The cosine model is the first approximation:
 
@@ -515,7 +544,8 @@ against `cos 45° = 0.707`.
 rather than assuming the cosine model. It is more honest, and it is the difference between
 "your saw can just make this cut" and a stalled blade mid-rip.
 
-### KB-D02 — Table saw limits **[consensus]**
+### KB-D02 — Table saw limits
+**[consensus]**
 
 | Limit | Default |
 | --- | --- |
@@ -526,14 +556,16 @@ rather than assuming the cosine model. It is more honest, and it is the differen
 A design that calls for a 1/4"-wide, 20"-long rip is not a warning — it is an instruction to do
 something unsafe, and the validator treats it as an error.
 
-### KB-D03 — Crosscut sled limits **[consensus]**
+### KB-D03 — Crosscut sled limits
+**[consensus]**
 
 Capacity is bounded by the sled's fence-to-blade travel and the saw's rear clearance. Minimum
 safe workpiece length matters for the hex-puck method (KB-A05), where pucks are short and
 narrow — a stop block and a hold-down are required, and below a threshold the cut should be
 refused.
 
-### KB-D04 — Drum sander limits **[consensus]**
+### KB-D04 — Drum sander limits
+**[consensus]**
 
 | Limit | Note |
 | --- | --- |
@@ -544,7 +576,8 @@ refused.
 Board width versus drum width is a hard gate. It is better to tell someone at design time that
 their board will not fit the sander than after the glue-up.
 
-### KB-D05 — Clamp capacity **[consensus]**
+### KB-D05 — Clamp capacity
+**[consensus]**
 
 The glue-up is bounded by clamp *reach* and by total available force (KB-A10). Both belong in the
 shop profile, since "you need 6 clamps of 600 lbf" is only useful if the tool knows you own four.

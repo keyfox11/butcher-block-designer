@@ -72,3 +72,17 @@ hardwood. Guessing is not acceptable. Two commitments run through the whole spec
 2. **Woodworking knowledge lives in a citable knowledge base, not in prose.** Safety rules —
    such as *never run an end-grain glue-up through a thickness planer* — are machine-readable
    blocking validation rules, not paragraphs a reader can skim past.
+
+### Checking the spec
+
+The spec's cross-references are mechanical properties, so they are checked mechanically:
+
+```bash
+node tools/check-spec.mjs
+```
+
+It verifies that every link and anchor resolves, that every referenced knowledge-base id and
+validation-rule id is defined, that every KB entry is actually cited, that rule numbering has no
+accidental gaps, and that the safety contract holds — the never-planer rule exists as a blocking
+rule *and* a critical instruction note, and the thickness-planer variant is absent from the
+operation type. Exits non-zero on failure, so it can gate CI.

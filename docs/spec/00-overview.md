@@ -56,7 +56,7 @@ boardWidth       = sum of layer widths;                // finished board width
 ```
 
 The math is *correct*. We verified it reproduces its own published defaults exactly (see
-[`01`](01-woodworking-domain.md#golden-case-1--cbdjs-defaults)). The limitation is not accuracy —
+[`01`](01-woodworking-domain.md#kb-a03--golden-case-1--cbdjs-defaults)). The limitation is not accuracy —
 it is that a design is only ever "N horizontal bands."
 
 ## The thesis

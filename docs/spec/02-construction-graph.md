@@ -370,6 +370,13 @@ interface ShopProfile {
   clampCount: number;
   clampForceEach: number;        // lbf
   clampMaxReach: Ticks;
+  /**
+   * Optional tooling. A chamfer can be cut on the table saw as a 45° bevel rip,
+   * but a roundover or juice groove needs a router and feet need a drill.
+   * Absence produces V-TOOL-090 rather than an unfollowable instruction.
+   */
+  hasRouter: boolean;
+  hasDrill: boolean;
   /** Expected seasonal moisture-content swing, for movement prediction (KB-B04). */
   moistureSwingPercent: number;
   perCutTolerance: number;       // ticks, for the tolerance band

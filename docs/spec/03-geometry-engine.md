@@ -231,7 +231,7 @@ The engine must be explicit about these rather than producing plausible-looking 
 | Case | Handling |
 | --- | --- |
 | Zero or negative strip width | **Error.** Geometrically impossible, usually an over-large bevel (KB-A06). |
-| Strip narrower than `minSafeRipWidth` | **Error**, not a warning — the design instructs an unsafe cut (`V-TOOL-020`). |
+| Strip narrower than `minSafeRipWidth` | **Error**, not a warning — the design instructs an unsafe cut (`V-SAFE-030`). |
 | Strip that tapers to zero *inside* the panel | **Error.** Checked at both faces, not one (KB-A06); CBDJS checks only one direction. |
 | Sliver faces below one tick | Merged into the neighbour sharing the longest edge; reported as info. |
 | Gap in a lamination | Reported as a polygon with its area, for the UI to highlight. Never auto-filled. |
