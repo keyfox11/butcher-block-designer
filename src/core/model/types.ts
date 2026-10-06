@@ -218,7 +218,22 @@ export interface TrimOp {
   readonly kind: 'trim';
   readonly input: Ref;
   readonly target:
-    | { kind: 'rect'; width: Ticks; height: Ticks }
+    | {
+        kind: 'rect';
+        width: Ticks;
+        height: Ticks;
+        /**
+         * Lower-left corner of the cut, in the workpiece's own coordinates.
+         *
+         * Omit it and the target is centred, which is what squaring up a panel
+         * means: take the same off both edges. State it when the material is
+         * not centred on the board, which is the case for every non-grid
+         * lay-up -- a honeycomb or a herringbone has a ragged border whose
+         * depth differs from side to side, so a centred cut can land in the
+         * ragged zone on one edge while leaving material on the other.
+         */
+        anchor?: { x: Ticks; y: Ticks };
+      }
     | { kind: 'outline'; polygon: Polygon };
 }
 

@@ -503,18 +503,34 @@ function evalOp(
         throw new GeometryError(`Node ${id}: outline trimming is not implemented in this phase`);
       }
 
-      // Centre the target so trimming takes material evenly from both edges,
-      // which is what squaring up actually does.
+      // Centre the target by default, because squaring up a panel means taking
+      // the same off both edges. An anchor overrides that for a lay-up whose
+      // material is not centred on its own bounding box.
       const insetX = (bounds.maxX - bounds.minX - op.target.width) / 2;
       const insetY = (bounds.maxY - bounds.minY - op.target.height) / 2;
       if (insetX < 0 || insetY < 0) {
         throw new GeometryError(`Node ${id}: trim target is larger than the workpiece`);
       }
 
+      const anchor = op.target.anchor;
+      const x0 = anchor ? bounds.minX + anchor.x : Math.round(bounds.minX + insetX);
+      const y0 = anchor ? bounds.minY + anchor.y : Math.round(bounds.minY + insetY);
+      if (
+        x0 < bounds.minX ||
+        y0 < bounds.minY ||
+        x0 + op.target.width > bounds.maxX ||
+        y0 + op.target.height > bounds.maxY
+      ) {
+        throw new GeometryError(
+          `Node ${id}: the trim target sits partly outside the workpiece, so the saw would be ` +
+            'cutting air on at least one edge',
+        );
+      }
+
       const { trimmed } = trimPartitionToRect(
         source.crossSection,
-        Math.round(bounds.minX + insetX),
-        Math.round(bounds.minY + insetY),
+        x0,
+        y0,
         op.target.width,
         op.target.height,
       );
