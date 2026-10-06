@@ -46,6 +46,24 @@ feature working on any static host without per-host configuration.
 Deploy via a GitHub Actions workflow on push to `main`, running `tools/check-spec.mjs` and the
 test suite as gates before publishing.
 
+### Open dependency: Pages requires a paid plan on a private repo
+
+The repository is **private**, and GitHub Pages only serves from a private repository on a paid
+plan (Pro, Team, or Enterprise). On a free account, Pages requires the repository to be public.
+
+This is not blocking — deployment is a P1 concern and the app builds and runs locally regardless
+— but it has to be resolved before the deploy workflow is written. Three ways out:
+
+| Option | Trade-off |
+| --- | --- |
+| Make the repo public when deploying | Free. Means publishing the source, which also means deciding a licence. |
+| GitHub Pro | Keeps the repo private and Pages works unchanged. |
+| Deploy elsewhere | Netlify and Vercel both serve private-repo builds on their free tiers. Costs nothing but adds an account, and the hash-fragment routing above means no per-host config is needed either way. |
+
+The hash-fragment decision was made partly for this reason: it keeps the shared-link feature
+working identically on any static host, so changing hosts later is a one-line config change
+rather than a rework.
+
 ## Module boundaries
 
 ```
