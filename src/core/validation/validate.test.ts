@@ -23,7 +23,7 @@ function build(
     rows: 10,
     boardThickness: inches(1.5),
     ...overrides,
-  } as Parameters<typeof checkerboard>[0];
+  };
 
   const { graph } = checkerboard(params, shop);
   const evaluated = evaluate(graph, shop);

@@ -3,11 +3,17 @@ import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
 
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules', 'tools/**'] },
-  js.configs.recommended,
-  ...tseslint.configs.recommendedTypeChecked,
+  { ignores: ['dist', 'node_modules', 'tools/**', '*.config.js', '*.cjs'] },
+
+  // Config files are not in the app tsconfig, so they get untyped linting only.
+  {
+    files: ['vite.config.ts', 'vitest.config.ts'],
+    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+  },
+
   {
     files: ['src/**/*.{ts,tsx}'],
+    extends: [js.configs.recommended, ...tseslint.configs.recommendedTypeChecked],
     languageOptions: {
       parserOptions: { project: ['./tsconfig.app.json'], tsconfigRootDir: import.meta.dirname },
     },
@@ -17,17 +23,22 @@ export default tseslint.config(
       'no-console': ['error', { allow: ['warn', 'error'] }],
     },
   },
+
   {
-    // core/ holds everything that must be CORRECT. Keeping it free of `any`
-    // and of framework entanglement is what makes it independently testable.
+    // core/ holds everything that must be CORRECT. Keeping it free of `any` and
+    // of framework entanglement is what makes it independently testable.
     files: ['src/core/**/*.ts'],
+    ignores: ['src/core/**/*.test.ts'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'error',
       'no-restricted-imports': [
         'error',
         {
           patterns: [
-            { group: ['react', 'react-dom', 'react/*', 'three', '@react-three/*'], message: 'core/ must not depend on UI libraries.' },
+            {
+              group: ['react', 'react-dom', 'react/*', 'three', '@react-three/*'],
+              message: 'core/ must not depend on UI libraries.',
+            },
             { group: ['../ui/*', '**/ui/**'], message: 'core/ must not import from ui/.' },
           ],
         },

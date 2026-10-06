@@ -9,7 +9,7 @@ import { boardDimensions } from '../geometry/evaluate.js';
 import { kb, type KbId } from '../knowledge/kb.js';
 import { SPECIES } from '../knowledge/species.js';
 import type { NodeId } from '../model/types.js';
-import { formatTicks, inches, toInches } from '../units/ticks.js';
+import { formatLimit, formatTicks, inches, toInches } from '../units/ticks.js';
 import type { Finding, Rule, Severity, ValidationContext } from './types.js';
 
 function finding(
@@ -84,7 +84,7 @@ const SAFE_020: Rule = {
           finding(SAFE_020, 'info', {
             nodes: [node.id],
             message: `Flattening removes ${formatTicks(node.op.removePerFace)} per face, which is ${passes} drum-sander passes.`,
-            remedy: 'Take light passes. Heavier cuts burn end grain and load the belt.',
+            remedy: `Take passes of no more than ${formatLimit(ctx.shop.drumSanderRemovalPerPass)}. Heavier cuts burn end grain and load the belt.`,
             data: { passes, perPass: ctx.shop.drumSanderRemovalPerPass },
           }),
         );

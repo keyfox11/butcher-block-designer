@@ -109,7 +109,9 @@ export function parseLength(input: string): ParsedLength {
   const body = negative ? text.slice(1).trim() : text;
 
   const result = parsePositive(body, input);
-  return negative ? { ...result, ticks: ticks(-result.ticks) } : result;
+  // Multiplication rather than unary negation: the branded Ticks type is not
+  // assignable to the operand of unary minus.
+  return negative ? { ...result, ticks: ticks(result.ticks * -1) } : result;
 }
 
 function parsePositive(body: string, input: string): ParsedLength {
@@ -185,6 +187,27 @@ export function formatTicks(value: Ticks | number, precision: Ticks = PRECISION.
 /** Format as a decimal inch value, for machine settings where that reads better. */
 export function formatInches(value: Ticks | number, places = 3): string {
   return `${toInches(value).toFixed(places)}"`;
+}
+
+/**
+ * Format a machine limit or capability.
+ *
+ * Limits FLOOR rather than round, and display at 1/64". Rounding a limit to the
+ * nearest increment can overstate it: 1/64" shown at 1/32" precision rounds UP
+ * to 1/32", which would tell someone they may remove twice what their machine
+ * allows. A stated limit must be achievable by definition, so error is only
+ * ever taken toward the safe side.
+ */
+export function formatLimit(value: Ticks | number): string {
+  const floored = Math.floor(value / PRECISION.SIXTY_FOURTH) * PRECISION.SIXTY_FOURTH;
+  if (floored !== 0) return formatTicks(ticks(floored), PRECISION.SIXTY_FOURTH);
+
+  // Below one 64th there is no useful fraction, so fall back to decimal --
+  // truncated, not toFixed, which would round 0.00075 up to 0.0008 and
+  // overstate the limit by exactly the amount this function exists to prevent.
+  const places = 4;
+  const scale = 10 ** places;
+  return `${(Math.floor(toInches(value) * scale) / scale).toFixed(places)}"`;
 }
 
 export function roundToPrecision(value: Ticks | number, precision: Ticks): Ticks {
