@@ -9,6 +9,7 @@
  */
 
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
+import { buildAssemblyMaps } from '../core/cutlist/assembly.js';
 import { buildCutList } from '../core/cutlist/cutlist.js';
 import { buildInstructions } from '../core/cutlist/instructions.js';
 import { evaluate } from '../core/geometry/evaluate.js';
@@ -100,6 +101,7 @@ export function App() {
         validation,
         cutList,
         steps: buildInstructions(graph, evaluated, shop),
+        assemblyMaps: buildAssemblyMaps(graph, evaluated),
         panelCount,
         setupCuts,
         definition,
@@ -170,7 +172,12 @@ export function App() {
     return (
       <div className="app print-view">
         {header}
-        <PrintSheet cutList={result.cutList} steps={result.steps} findings={result.validation.findings} />
+        <PrintSheet
+          cutList={result.cutList}
+          steps={result.steps}
+          findings={result.validation.findings}
+          assemblyMaps={result.assemblyMaps}
+        />
       </div>
     );
   }

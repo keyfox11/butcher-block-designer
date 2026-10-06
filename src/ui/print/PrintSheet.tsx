@@ -6,7 +6,9 @@
  * step or table split across a page break.
  */
 
+import type { AssemblyMap } from '../../core/cutlist/assembly.js';
 import type { CutList } from '../../core/cutlist/cutlist.js';
+import { AssemblyMapSheet } from './AssemblyMapSheet.js';
 import { describeSetting } from '../../core/cutlist/cutlist.js';
 import { PHASE_TITLES, type Phase, type Step } from '../../core/cutlist/instructions.js';
 import { SPECIES } from '../../core/knowledge/species.js';
@@ -17,9 +19,10 @@ export interface PrintSheetProps {
   readonly cutList: CutList;
   readonly steps: readonly Step[];
   readonly findings: readonly Finding[];
+  readonly assemblyMaps: readonly AssemblyMap[];
 }
 
-export function PrintSheet({ cutList, steps, findings }: PrintSheetProps) {
+export function PrintSheet({ cutList, steps, findings, assemblyMaps }: PrintSheetProps) {
   const warnings = findings.filter((f) => f.severity === 'warning');
 
   return (
@@ -186,6 +189,8 @@ export function PrintSheet({ cutList, steps, findings }: PrintSheetProps) {
           </div>
         ))}
       </section>
+
+      <AssemblyMapSheet maps={assemblyMaps} />
 
       <section className="print-section">
         <h2>Care</h2>

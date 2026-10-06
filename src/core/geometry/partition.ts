@@ -266,6 +266,12 @@ export interface LaminateResult {
    * bound, so the check keeps its teeth.
    */
   readonly tolerance: number;
+  /**
+   * Where each member ended up, in order. Butting computes its offsets from
+   * the mating edges, so only the lamination knows them -- and an assembly map
+   * needs them to label what the builder physically picks up.
+   */
+  readonly placed: readonly Partition[];
 }
 
 function laminateToleranceFor(outline: Polygon, members: readonly Partition[]): number {
@@ -373,6 +379,7 @@ export function laminateButted(members: readonly Partition[]): LaminateResult {
     partition: { outline, faces },
     gapArea: area(outline) - covered,
     tolerance: laminateToleranceFor(outline, placed),
+    placed,
   };
 }
 
@@ -434,5 +441,6 @@ export function laminate(members: readonly Partition[]): LaminateResult {
     partition: { outline, faces },
     gapArea: area(outline) - covered,
     tolerance: laminateToleranceFor(outline, members),
+    placed: members,
   };
 }

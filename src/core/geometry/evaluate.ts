@@ -52,6 +52,15 @@ export interface EvalResult {
   readonly ledger: MaterialLedger;
   /** Every node's outputs, for the cut list and assembly maps. */
   readonly nodeOutputs: ReadonlyMap<NodeId, readonly Workpiece[]>;
+  /**
+   * Where each laminate's members ended up, in the parent's coordinates.
+   *
+   * An assembly map has to label what the builder physically picks up -- a
+   * slice -- not every species region inside it. Butted placement computes its
+   * offsets from the mating edges, so the positions are only known here;
+   * recomputing them downstream would duplicate the geometry.
+   */
+  readonly memberPlacements: ReadonlyMap<NodeId, readonly Partition[]>;
 }
 
 /** Relative tolerance on per-node volume conservation. */
@@ -89,6 +98,8 @@ function totalOf(v: VolumeBySpecies): number {
 
 interface NodeResult {
   readonly outputs: readonly Workpiece[];
+  /** Placed member cross-sections, for laminate nodes only. */
+  readonly placements?: readonly Partition[];
   readonly kerf: VolumeBySpecies;
   readonly removed: VolumeBySpecies;
   readonly input: VolumeBySpecies;
@@ -136,6 +147,11 @@ export function evaluate(graph: Graph, shop: ShopProfile): EvalResult {
     workpiece,
     ledger: buildLedger(graph, cache, workpiece),
     nodeOutputs: new Map([...cache].map(([id, r]) => [id, r.outputs])),
+    memberPlacements: new Map(
+      [...cache]
+        .filter(([, r]) => r.placements !== undefined)
+        .map(([id, r]) => [id, r.placements!]),
+    ),
   };
 }
 
@@ -410,6 +426,10 @@ function evalOp(
         );
       }
 
+      // laminateButted repositions members, so take the placed geometry from
+      // the result rather than from the pre-placement members.
+      const placements = result.placed;
+
       const output: Workpiece = {
         crossSection: result.partition,
         length: first.piece.length,
@@ -418,6 +438,7 @@ function evalOp(
       };
       return {
         outputs: [output],
+        placements,
         input: workpieceVolumeBySpecies(output),
         kerf: {},
         removed: {},
