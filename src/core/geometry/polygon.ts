@@ -123,6 +123,37 @@ export function rotate180About(poly: Polygon, cx2: number, cy2: number): Polygon
   return poly.map((p) => point(cx2 - p.x, cy2 - p.y));
 }
 
+/**
+ * Rotate about a centre by an arbitrary angle. `cx2`/`cy2` are doubled, as
+ * above, so a half-tick centre stays exact.
+ *
+ * This is the only transform in the model that is *not* exact, and it is worth
+ * being clear about why it earns its place. Physically it is the cheapest
+ * operation there is: turning a stick about its own length before the glue
+ * goes on. Nothing else can produce the three orientations a tumbling block
+ * needs -- a 60-degree rhombus has 180-degree symmetry, so rotating by half a
+ * turn and mirroring between them only ever yield two of the three.
+ *
+ * A 120-degree turn lands vertices off the tick grid, so each is rounded and
+ * sits within half a tick of true. That is 1/16000", far below any saw, and
+ * the union welder is sized to absorb exactly this.
+ */
+export function rotateAbout(poly: Polygon, angle: MilliDeg, cx2: number, cy2: number): Polygon {
+  const radians = toRadians(angle);
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  return toCounterClockwise(
+    poly.map((p) => {
+      const dx = p.x - cx2 / 2;
+      const dy = p.y - cy2 / 2;
+      return point(
+        Math.round(cx2 / 2 + dx * cos - dy * sin),
+        Math.round(cy2 / 2 + dx * sin + dy * cos),
+      );
+    }),
+  );
+}
+
 /** Mirror across a vertical axis. `axis2` is twice the axis x-coordinate. */
 export function mirrorX(poly: Polygon, axis2: number): Polygon {
   // Mirroring reverses winding; restore CCW so downstream area signs hold.

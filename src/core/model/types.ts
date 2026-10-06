@@ -134,7 +134,20 @@ export interface LaminateMember {
    * a brick offset, a pinwheel.
    */
   readonly offset: { x: Ticks; y: Ticks };
-  readonly rotate180: boolean;
+  /**
+   * Turn this member about its own length axis before gluing, in degrees
+   * counter-clockwise as seen looking down the grain.
+   *
+   * Physically the cheapest operation in the shop -- you roll the stick in your
+   * hand -- and it is the only way to reach the three orientations a tumbling
+   * block needs. A 60-degree rhombus has 180-degree symmetry, so half-turns and
+   * mirroring between them only ever produce two of the three; the hexagon
+   * needs 120 and 240.
+   *
+   * Half-turns stay exact. Any other angle lands vertices off the tick grid and
+   * is rounded, which the union welder is sized to absorb.
+   */
+  readonly rotate: MilliDeg;
   readonly mirrored: boolean;
 }
 
@@ -152,8 +165,13 @@ export interface LaminateOp {
    * once any cut is bevelled: slanted strips interlock, so their bounding
    * boxes overlap and an explicit offset would have to re-derive the
    * trigonometry in every generator.
+   *
+   * `free` also uses each member's offset, but takes the outline to be the true
+   * union of the members rather than their bounding box. Required for any
+   * assembly that is not a rectangle -- a honeycomb of hex pucks above all --
+   * where the bounding box would claim material that is not there.
    */
-  readonly placement?: 'explicit' | 'butted';
+  readonly placement?: 'explicit' | 'butted' | 'free';
   /**
    * Angled joints convert clamp pressure into lateral force and slide, so they
    * are glued row by row with a cure between rows (KB-A11).
@@ -274,7 +292,11 @@ export interface ShopProfile {
 /* Project                                                                     */
 /* -------------------------------------------------------------------------- */
 
-export const SCHEMA_VERSION = 1;
+/**
+ * v2 generalised `LaminateMember.rotate180: boolean` to `rotate: MilliDeg`,
+ * which a tumbling block needs and a half-turn cannot express.
+ */
+export const SCHEMA_VERSION = 2;
 
 export interface ProjectMeta {
   readonly name: string;

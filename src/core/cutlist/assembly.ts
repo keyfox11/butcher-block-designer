@@ -14,7 +14,8 @@ import type { EvalResult } from '../geometry/evaluate.js';
 import { boundingBox } from '../geometry/polygon.js';
 import { SPECIES } from '../knowledge/species.js';
 import type { Graph, LaminateOp, NodeId, SpeciesId, Ticks } from '../model/types.js';
-import { TICKS_PER_INCH, formatTicks } from '../units/ticks.js';
+import type { MilliDeg } from '../units/ticks.js';
+import { NO_TURN, TICKS_PER_INCH, formatTicks } from '../units/ticks.js';
 import { analyze } from './analyze.js';
 
 export interface AssemblyPiece {
@@ -37,8 +38,13 @@ export interface AssemblyPiece {
   /**
    * Flip and rotate are DIFFERENT operations with different results; conflating
    * them is a common way to get a mirrored pattern, so they are marked apart.
+   *
+   * The rotation is in millidegrees rather than a flag because a tumbling block
+   * turns its sticks by 120 and 240. "Turn it round" and "turn it a third of
+   * the way round" are not the same instruction, and a map that cannot tell
+   * them apart is a map that builds the wrong board.
    */
-  readonly rotated180: boolean;
+  readonly rotation: MilliDeg;
   readonly mirrored: boolean;
 }
 
@@ -74,8 +80,8 @@ export function buildAssemblyMaps(graph: Graph, evaluated: EvalResult): readonly
     const pieces: AssemblyPiece[] = placements.map((placed, index) => {
       const member = op.members[index];
       const transform = member
-        ? { rotated180: member.rotate180, mirrored: member.mirrored }
-        : { rotated180: false, mirrored: false };
+        ? { rotation: member.rotate, mirrored: member.mirrored }
+        : { rotation: NO_TURN, mirrored: false };
 
       const xs = placed.outline.map((p) => p.x);
       const ys = placed.outline.map((p) => p.y);
@@ -114,7 +120,7 @@ export function buildAssemblyMaps(graph: Graph, evaluated: EvalResult): readonly
           x: (Math.min(...xs) + Math.max(...xs)) / 2,
           y: (Math.min(...ys) + Math.max(...ys)) / 2,
         },
-        rotated180: transform.rotated180,
+        rotation: transform.rotation,
         mirrored: transform.mirrored,
       };
     });

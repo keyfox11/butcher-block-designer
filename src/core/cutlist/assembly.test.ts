@@ -51,7 +51,7 @@ describe('assembly maps', () => {
 
   it('marks rotated slices so they cannot be laid the wrong way', () => {
     const stageTwo = maps().at(-1)!;
-    expect(stageTwo.pieces.some((p) => p.rotated180)).toBe(true);
+    expect(stageTwo.pieces.some((p) => p.rotation !== 0)).toBe(true);
   });
 
   it('marks angled glue-ups as row by row', () => {

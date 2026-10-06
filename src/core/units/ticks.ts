@@ -59,6 +59,10 @@ export function milliDeg(n: number): MilliDeg {
   return n as MilliDeg;
 }
 
+/** Named because a laminate member's turn is read far more often than it is set. */
+export const NO_TURN = 0 as MilliDeg;
+export const HALF_TURN = 180_000 as MilliDeg;
+
 export function degrees(n: number): MilliDeg {
   return milliDeg(Math.round(n * 1000));
 }

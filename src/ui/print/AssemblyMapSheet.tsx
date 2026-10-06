@@ -13,7 +13,8 @@ import {
   mapScale,
   summariseMap,
 } from '../../core/cutlist/assembly.js';
-import { TICKS_PER_INCH } from '../../core/units/ticks.js';
+import type { MilliDeg } from '../../core/units/ticks.js';
+import { TICKS_PER_INCH, toDegrees } from '../../core/units/ticks.js';
 
 /** Letter paper at 0.5" margins, less room for the caption. */
 const PRINTABLE = { width: 7.5, height: 8.5 };
@@ -123,10 +124,10 @@ function AssemblyMapFigure({ map }: { map: AssemblyMap }) {
                 y={piece.centre.y + fontSize * 1.1}
                 size={fontSize * 0.8}
                 stroke={stroke}
-                flipped={piece.rotated180}
+                rotation={piece.rotation}
               />
 
-              {(piece.rotated180 || piece.mirrored) && (
+              {(piece.rotation !== 0 || piece.mirrored) && (
                 <text
                   x={piece.centre.x}
                   y={piece.centre.y - fontSize * 1.05}
@@ -138,7 +139,7 @@ function AssemblyMapFigure({ map }: { map: AssemblyMap }) {
                   paintOrder="stroke"
                   fontWeight={700}
                 >
-                  {piece.rotated180 ? 'ROTATE' : 'FLIP'}
+                  {piece.rotation !== 0 ? `TURN ${toDegrees(piece.rotation)}°` : 'FLIP'}
                 </text>
               )}
             </g>
@@ -161,25 +162,40 @@ function AssemblyMapFigure({ map }: { map: AssemblyMap }) {
   );
 }
 
+/**
+ * Points the way the piece is turned, at the actual angle.
+ *
+ * A half-turn arrow could be drawn by negating a direction; 120 degrees could
+ * not. Drawing the true angle means the builder can match the arrow to the
+ * piece in their hand instead of doing the trigonometry at the bench.
+ */
 function OrientationArrow({
   x,
   y,
   size,
   stroke,
-  flipped,
+  rotation,
 }: {
   x: number;
   y: number;
   size: number;
   stroke: number;
-  flipped: boolean;
+  rotation: MilliDeg;
 }) {
-  const direction = flipped ? -1 : 1;
+  // SVG y runs downward, so a counter-clockwise model turn is a clockwise
+  // rotation of the glyph.
+  const degrees = toDegrees(rotation);
   return (
-    <g stroke="#000" strokeWidth={stroke * 1.6} fill="none" strokeLinecap="round">
-      <line x1={x} y1={y - (size / 2) * direction} x2={x} y2={y + (size / 2) * direction} />
+    <g
+      stroke="#000"
+      strokeWidth={stroke * 1.6}
+      fill="none"
+      strokeLinecap="round"
+      transform={`rotate(${-degrees} ${x} ${y})`}
+    >
+      <line x1={x} y1={y - size / 2} x2={x} y2={y + size / 2} />
       <polyline
-        points={`${x - size / 4},${y + (size / 4) * direction} ${x},${y + (size / 2) * direction} ${x + size / 4},${y + (size / 4) * direction}`}
+        points={`${x - size / 4},${y + size / 4} ${x},${y + size / 2} ${x + size / 4},${y + size / 4}`}
       />
     </g>
   );

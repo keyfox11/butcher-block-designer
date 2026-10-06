@@ -184,7 +184,7 @@ export function buildInstructions(
 
   if (a.finalLaminate) {
     const members = a.finalLaminate.op.members;
-    const rotatedCount = members.filter((m) => m.rotate180).length;
+    const rotatedCount = members.filter((m) => m.rotate !== 0).length;
 
     steps.push({
       phase: 'stage2',

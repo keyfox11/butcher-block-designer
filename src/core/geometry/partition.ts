@@ -7,6 +7,8 @@
  */
 
 import type { Partition, PartitionFace, SpeciesId } from '../model/types.js';
+import { type MilliDeg, milliDeg } from '../units/ticks.js';
+import { WELD_TICKS, singleOutline } from './union.js';
 import {
   type BoundingBox,
   type CutEdges,
@@ -20,6 +22,7 @@ import {
   mirrorX,
   rectangle,
   rotate180About,
+  rotateAbout,
   sawCutEdges,
   toCounterClockwise,
   translate,
@@ -158,6 +161,24 @@ export function rotatePartition180(p: Partition): Partition {
   const cx2 = b.minX + b.maxX;
   const cy2 = b.minY + b.maxY;
   return mapPartition(p, (poly) => rotate180About(poly, cx2, cy2));
+}
+
+/**
+ * Rotate about the partition's own centre by an arbitrary angle.
+ *
+ * Half-turns are routed through the exact integer path, because that is the
+ * overwhelmingly common case -- every checkerboard does it on every other
+ * slice -- and it must not acquire rounding error it never had.
+ */
+export function rotatePartition(p: Partition, angle: MilliDeg): Partition {
+  const normalised = ((angle % 360_000) + 360_000) % 360_000;
+  if (normalised === 0) return p;
+  if (normalised === 180_000) return rotatePartition180(p);
+
+  const b = partitionBounds(p);
+  const cx2 = b.minX + b.maxX;
+  const cy2 = b.minY + b.maxY;
+  return mapPartition(p, (poly) => rotateAbout(poly, milliDeg(normalised), cx2, cy2));
 }
 
 /** Mirror across the partition's own vertical centre line. */
@@ -416,6 +437,44 @@ function buttedOutline(placed: readonly Partition[]): Polygon {
     { x: Math.round(rightTop), y: maxY },
     { x: Math.round(leftTop), y: maxY },
   ]);
+}
+
+/**
+ * Glue members in the positions the design gives them, with the outline taken
+ * as their true union.
+ *
+ * This is the general case, and the only one that works when the assembly is
+ * not a rectangle. A honeycomb's bounding box overhangs the jagged border by
+ * half a hex all the way round, so a bounding-box outline would claim material
+ * that is not there and every downstream dimension would be wrong.
+ *
+ * Note which check does the work here. `laminate` and `laminateButted` find a
+ * gap by comparing areas against a tolerance, which is a blunt instrument: a
+ * missing cell has to beat the accumulated snapping error of the whole panel.
+ * A union knows its own topology, so a missing cell is an enclosed ring -- found
+ * exactly, at any size, and with a position to show the user.
+ */
+export function laminateFree(members: readonly Partition[], context: string): LaminateResult {
+  if (members.length === 0) throw new GeometryError('Cannot laminate zero members');
+
+  const faces = members.flatMap((m) => m.faces);
+  // Union the FACES, not the member outlines. They agree for a well-formed
+  // member, and where they disagree the faces are the material.
+  const outline = singleOutline(
+    faces.map((f) => f.polygon),
+    context,
+  );
+  const covered = faces.reduce((sum, f) => sum + area(f.polygon), 0);
+
+  return {
+    partition: { outline, faces },
+    gapArea: area(outline) - covered,
+    // Welding moves a boundary vertex by up to WELD_TICKS rather than the half
+    // tick a snap costs, so the bound scales accordingly. Holes are already
+    // caught exactly above; what is left for this number to catch is overlap.
+    tolerance: laminateToleranceFor(outline, members) * (WELD_TICKS / SNAP_TICKS_PER_UNIT_BOUNDARY),
+    placed: members,
+  };
 }
 
 export function laminate(members: readonly Partition[]): LaminateResult {

@@ -22,12 +22,13 @@ import {
   cutPartition,
   laminate,
   laminateButted,
+  laminateFree,
   leftEdgeAtTableFace,
   profileAt,
   normalisePartition,
   mirrorPartition,
   partitionBounds,
-  rotatePartition180,
+  rotatePartition,
   singleFacePartition,
   translatePartition,
   trimPartitionToRect,
@@ -392,10 +393,11 @@ function evalOp(
 
     case 'laminate': {
       const butted = op.placement === 'butted';
+      const free = op.placement === 'free';
       const members = op.members.map((m) => {
         const piece = resolve(m.piece);
         let partition = normalisePartition(piece.crossSection);
-        if (m.rotate180) partition = rotatePartition180(partition);
+        if (m.rotate !== 0) partition = normalisePartition(rotatePartition(partition, m.rotate));
         if (m.mirrored) partition = mirrorPartition(partition);
         return {
           piece,
@@ -416,9 +418,12 @@ function evalOp(
       const first = members[0];
       if (!first) throw new GeometryError(`Node ${id}: laminate has no members`);
 
+      const placedPartitions = members.map((m) => m.partition);
       const result = butted
-        ? laminateButted(members.map((m) => m.partition))
-        : laminate(members.map((m) => m.partition));
+        ? laminateButted(placedPartitions)
+        : free
+          ? laminateFree(placedPartitions, `Node ${id}`)
+          : laminate(placedPartitions);
       if (Math.abs(result.gapArea) > result.tolerance) {
         throw new GeometryError(
           `Node ${id}: laminate members leave a ${result.gapArea > 0 ? 'gap' : 'overlap'} of ` +

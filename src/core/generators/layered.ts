@@ -18,7 +18,6 @@ import {
 } from '../model/defaults.js';
 import type {
   Graph,
-  GraphNode,
   LaminateMember,
   MilliDeg,
   NodeId,
@@ -27,7 +26,8 @@ import type {
   SpeciesId,
   Ticks,
 } from '../model/types.js';
-import { milliDeg, ticks, toRadians } from '../units/ticks.js';
+import { HALF_TURN, NO_TURN, milliDeg, ticks, toRadians } from '../units/ticks.js';
+import { GraphBuilder } from './builder.js';
 
 const SQUARE = milliDeg(0);
 
@@ -75,21 +75,6 @@ export interface LayeredResult {
     readonly setupCuts: number;
     readonly hasBevels: boolean;
   };
-}
-
-class GraphBuilder {
-  private readonly nodes: Record<NodeId, GraphNode> = {};
-  private counter = 0;
-
-  add(op: GraphNode['op'], label?: string): NodeId {
-    const id = `n${++this.counter}`;
-    this.nodes[id] = label === undefined ? { id, op } : { id, op, label };
-    return id;
-  }
-
-  build(output: { node: NodeId; port: number }): Graph {
-    return { nodes: this.nodes, output };
-  }
 }
 
 export function layeredBoard(params: LayeredBoardParams, shop: ShopProfile): LayeredResult {
@@ -214,7 +199,7 @@ export function layeredBoard(params: LayeredBoardParams, shop: ShopProfile): Lay
   const panelMembers: LaminateMember[] = layers.map((_, index) => {
     const ref = stripRef.get(index);
     if (!ref) throw new Error(`Internal: no strip for layer ${index}`);
-    return { piece: ref, offset: { x: ticks(0), y: ticks(0) }, rotate180: false, mirrored: false };
+    return { piece: ref, offset: { x: ticks(0), y: ticks(0) }, rotate: NO_TURN, mirrored: false };
   });
 
   const panel = b.add(
@@ -255,7 +240,7 @@ export function layeredBoard(params: LayeredBoardParams, shop: ShopProfile): Lay
     members.push({
       piece: { node: rotated, port: 0 },
       offset: { x: ticks(0), y: ticks(row * sourceThickness) },
-      rotate180: alternate && sliceTransform === 'rotateAlternate',
+      rotate: alternate && sliceTransform === 'rotateAlternate' ? HALF_TURN : NO_TURN,
       mirrored: alternate && sliceTransform === 'flipAlternate',
     });
   }

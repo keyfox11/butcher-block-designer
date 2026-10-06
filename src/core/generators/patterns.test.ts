@@ -188,10 +188,10 @@ describe('pattern semantics', () => {
     const zOp = Object.values(z.graph.nodes).filter((n) => n.op.kind === 'laminate').pop()!;
     const cOp = Object.values(c.graph.nodes).filter((n) => n.op.kind === 'laminate').pop()!;
     if (zOp.op.kind !== 'laminate' || cOp.op.kind !== 'laminate') throw new Error('expected laminates');
-    expect(zOp.op.members.some((m) => m.rotate180)).toBe(true);
+    expect(zOp.op.members.some((m) => m.rotate !== 0)).toBe(true);
     expect(zOp.op.members.some((m) => m.mirrored)).toBe(false);
     expect(cOp.op.members.some((m) => m.mirrored)).toBe(true);
-    expect(cOp.op.members.some((m) => m.rotate180)).toBe(false);
+    expect(cOp.op.members.some((m) => m.rotate !== 0)).toBe(false);
   });
 
   it('glues angled panels row by row, since angled joints slide', () => {

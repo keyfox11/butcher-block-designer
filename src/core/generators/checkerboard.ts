@@ -13,7 +13,6 @@ import {
 } from '../model/defaults.js';
 import type {
   Graph,
-  GraphNode,
   LaminateMember,
   NodeId,
   RingOrientation,
@@ -21,7 +20,8 @@ import type {
   SpeciesId,
   Ticks,
 } from '../model/types.js';
-import { milliDeg, ticks } from '../units/ticks.js';
+import { HALF_TURN, NO_TURN, milliDeg, ticks } from '../units/ticks.js';
+import { GraphBuilder } from './builder.js';
 
 const SQUARE = milliDeg(0);
 
@@ -56,21 +56,6 @@ export interface GeneratedGraph {
     /** Two panels are needed when a single one cannot produce the offset. */
     readonly panelCount: number;
   };
-}
-
-class GraphBuilder {
-  private readonly nodes: Record<NodeId, GraphNode> = {};
-  private counter = 0;
-
-  add(op: GraphNode['op'], label?: string): NodeId {
-    const id = `n${++this.counter}`;
-    this.nodes[id] = label === undefined ? { id, op } : { id, op, label };
-    return id;
-  }
-
-  build(output: { node: NodeId; port: number }): Graph {
-    return { nodes: this.nodes, output };
-  }
 }
 
 /**
@@ -193,7 +178,7 @@ export function checkerboard(params: CheckerboardParams, shop: ShopProfile): Gen
       piece: { node: rotated, port: 0 },
       offset: { x: ticks(0), y: ticks(row * cellSize) },
       // With a single panel the offset comes from reversing the sequence.
-      rotate180: !needsTwoPanels && row % 2 === 1,
+      rotate: !needsTwoPanels && row % 2 === 1 ? HALF_TURN : NO_TURN,
       mirrored: false,
     });
   }
@@ -331,7 +316,7 @@ function buildPanel(b: GraphBuilder, spec: PanelSpec): NodeId {
     const member: LaminateMember = {
       piece: ref,
       offset: { x: ticks(x), y: ticks(0) },
-      rotate180: false,
+      rotate: NO_TURN,
       mirrored: false,
     };
     x += w;
