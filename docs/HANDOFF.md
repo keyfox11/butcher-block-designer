@@ -9,7 +9,7 @@ including a table of what is specified but not yet built. The spec in [`docs/spe
 sits *between* them: why the code deviates from the spec where it does, which invariant catches
 which class of bug, and the traps that cost time.
 
-**Status:** P0, P1 and P2 complete. 482 tests, CI green.
+**Status:** P0, P1 and P2 complete. 491 tests, CI green.
 **The next phase is an open decision** — see [§6](#6-the-open-decision).
 
 ---
@@ -97,6 +97,24 @@ no area tolerance would have separated from noise.
 Caught: the generator rounding `T × tan(30°)` instead of `T / cos(30°)`, to land the lattice on
 exact integers. The hexagon assembled perfectly and came out two ticks wide — because across-flats
 is `ripWidth × √3`, so rounding *that* quantity violates the identity rather than preserving it.
+
+### An independent tool, run in the opposite direction — catches a shared blind spot
+
+Golden case G4. The point is not that it agrees; it is that it is *independent and inverted*. G1
+drives the model forwards (slab → board) against CBDJS. G4 drives it backwards (finished board →
+slab) against Old Line. A sign error or an off-by-one in the kerf accounting can survive one
+direction by being consistent with itself; surviving both means the relation holds, not just the
+procedure.
+
+Caught: nothing, which is the honest answer — the formulas already agreed to the tick at both
+`n = 24` and `n = 17`. What it *did* surface was a divergence no test was asking about: the two
+tools place the squaring allowance on opposite sides of the finished dimension. That is recorded
+as a convention in [§8](#8-open-items) rather than fixed, because both are defensible and only
+one of them is ours to choose.
+
+**The transferable part:** an external cross-check is worth most when it enters the model from a
+direction your own tests cannot. Two sources that both compute forwards would have agreed for the
+same reasons.
 
 ### Citation integrity — catches knowledge drifting out of the knowledge base
 
@@ -232,8 +250,10 @@ says may not fully succeed, and it benefits most from everything else being soli
 
 The smallest bundle that makes a first real board possible and trustworthy.
 
-1. **Capture golden case G4.** Old Line's worked example is the only remaining *independent*
-   cross-check; everything else verifies against CBDJS or against the tool's own geometry.
+1. ~~**Capture golden case G4.**~~ **Done.** Two fixtures captured from Old Line's live
+   calculator, committed as `golden case G4` in `evaluate.test.ts` and recorded as
+   [KB-A13](spec/01-woodworking-domain.md#kb-a13--golden-case-4--old-lines-calculator-run-backwards).
+   It raised one open question of its own — see the convention note in [§8](#8-open-items).
 2. **Fix fence-setting precision.** Measured, not hypothetical: the 3D cube at the default 1½"
    stock wants a fence of `1.73205"`. At the default 1/32" display precision the cut list prints
    `1 23/32"` (1.71875"), which is 0.0133" low. Build to that and across-flats comes out 2.977"
@@ -243,8 +263,10 @@ The smallest bundle that makes a first real board possible and trustworthy.
 3. **Resolve deployment.** Pages needs a paid plan on a private repo. Until then nobody can open
    this at a bench, which is where it is meant to be used.
 
-*Why first: the tool's entire premise is output you can trust at the saw, and that premise
-currently rests on one external cross-check plus a dimension that prints inconsistently.*
+*Why first: the tool's entire premise is output you can trust at the saw. With G4 captured there
+are now two independent cross-checks pinning the dimensional model from both directions, so what
+remains in this bundle is a dimension that prints inconsistently and a tool nobody can open at a
+bench.*
 
 ### B — Finish the validator
 
@@ -321,7 +343,7 @@ the rule gaps in [§7](#7-the-validator-gap).
 | Item | Notes |
 | --- | --- |
 | **Nothing has been built in wood** | The arithmetic is verified against published results and the geometry is checked by construction, but no board from this tool has been made. That is the real test, and it will find things no invariant can. |
-| **Golden case G4** | Old Line's worked example was never captured. G1, G2, G3, G5 are verified. The only remaining *independent* cross-check — everything else verifies against CBDJS or against the tool's own geometry. |
+| **Grid-first vs finished-first** | Found by capturing G4, and the one question it left open. Old Line *adds* its squaring allowance to the slab, so you get the board you asked for. Our grid patterns *subtract* `2 × trimPerEdge` from the nominal grid, so a 16 × 24 grid of ¾" cells finishes at 11⅞" × 17⅞" rather than 12" × 18". Both reserve the same ⅛"; only which number the user states is different. Grid-first is consistent across every grid generator and dodges Old Line's silent `ceil` overshoot — but it does mean the app cannot be asked for a 12" board directly. A deliberate convention, not a defect; worth revisiting if the finished size turns out to be what people actually type. |
 | **Pages on a private repo** | GitHub Pages serves from a private repo only on a paid plan. Repo is private, plan unknown. Resolve before writing a deploy workflow — CI builds but does not publish. Options in [`08`](spec/08-architecture-and-stack.md#open-dependency-pages-requires-a-paid-plan-on-a-private-repo). |
 | **Minimum safe puck size** | For crosscutting hex pucks on a sled. Still a conservative shop-profile default; the tumbling block now exercises it, so a real number is measurable. |
 | **Multi-stage material cost** | A tumbling block runs ~3.6× finished volume and herringbone ~3.1×, against KB-A12's 1.5–2.5× band for an ordinary end-grain board. `V-MAT-020` warns and now names where the wood goes. Whether the band should scale with pattern class is a judgement call left open rather than guessed. |

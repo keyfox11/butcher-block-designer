@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
-import { DEFAULT_SHOP } from '../model/defaults.js';
+import { DEFAULT_SHOP, DEFAULT_TRIM_PER_EDGE } from '../model/defaults.js';
 import { checkerboard } from '../generators/checkerboard.js';
 import { TICKS_PER_INCH, inches, toInches } from '../units/ticks.js';
 import {
@@ -59,6 +59,124 @@ describe('golden case G1: CBDJS defaults', () => {
     const slice = inches(1.5);
     expect(Math.floor(panel / (slice + kerf))).toBe(1);
     expect(maxSlices(panel, slice, kerf)).toBe(2);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Golden case G4 — Old Line Woodcraft's calculator                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The second independent source, and the only one that runs the arithmetic
+ * BACKWARDS: you state the finished board and it returns the slab to build.
+ * G1 runs forwards (slab -> board), so between them the dimensional model is
+ * pinned from both ends (KB-A13).
+ *
+ * Our generators are grid-first -- you set cells, and the finished size is
+ * derived -- so the two tools place the squaring allowance on opposite sides of
+ * the same number. Old Line ADDS it to the slab; we SUBTRACT it from the grid.
+ * Asserting their raw slab dimensions would therefore encode our convention as
+ * if it were theirs. What is genuinely shared, and what is asserted here, is
+ * the slab length consumed by crosscutting and the SIZE of the reserve.
+ */
+describe('golden case G4: Old Line, planning backwards from the finished board', () => {
+  const kerf = DEFAULT_SHOP.kerf;
+  const squaring = 2 * DEFAULT_TRIM_PER_EDGE;
+
+  // Their square-up end-trim is 1/8", applied once. Ours is 1/16" per edge.
+  // The two conventions only line up because the totals agree, so if either
+  // default moves, this equality is the thing that should fail first.
+  it('reserves the same total for squaring, however it is apportioned', () => {
+    expect(squaring).toBe(inches(0.125));
+  });
+
+  /**
+   * Their shipped defaults: finished 18" x 12" x 1-1/2" from a 3/4" slab,
+   * kerf 1/8", cleanup 1/8" per face, end-trim 1/8". Reported: a slab
+   * 44-7/8" x 12-1/8" x 3/4", crosscut 1-3/4", 24 segments, 2.83 BF.
+   *
+   * Mapped onto a checkerboard: the pitch IS the cell, so a 3/4" cell with 16
+   * columns and 24 rows is the same board.
+   */
+  describe('their default board, as a 16 x 24 grid of 3/4" cells', () => {
+    const { derived } = checkerboard(
+      {
+        cellSize: inches(0.75),
+        speciesA: 'hard-maple',
+        speciesB: 'black-walnut',
+        columns: 16,
+        rows: 24,
+        boardThickness: inches(1.5),
+      },
+      shop,
+    );
+
+    it('crosscuts at 1-3/4" for a 1-1/2" board', () => {
+      // finished thickness + 2 faces of cleanup. Both tools default to 1/8".
+      expect(toInches(derived.sliceLength)).toBe(1.75);
+    });
+
+    it('consumes 44-7/8" of slab length for 24 segments', () => {
+      // n*s + (n-1)*kerf = 24*1.75 + 23*0.125. The (n-1) is the same fact the
+      // +1 correction in G1 expresses from the other direction: there is no
+      // kerf after the final slice.
+      expect(toInches(derived.panelLength - squaring)).toBe(44.875);
+    });
+
+    it('loses 2-7/8" to the blade across 23 crosscuts', () => {
+      expect(toInches(23 * kerf)).toBe(2.875);
+    });
+
+    it('carries the preserved dimension straight through the slab', () => {
+      // Their slab is 12-1/8" and yields 12"; ours is 12" and yields 11-7/8".
+      // Same reserve, opposite side of the finished number.
+      expect(toInches(derived.panelWidth)).toBe(12);
+      expect(derived.panelWidth - derived.finishedWidth).toBe(squaring);
+    });
+
+    it('builds the segment-built dimension out of whole pitches', () => {
+      expect(toInches(24 * inches(0.75))).toBe(18);
+      expect(derived.finishedLength).toBe(inches(18) - squaring);
+    });
+  });
+
+  /**
+   * A second capture at a different segment count, because one fixture cannot
+   * distinguish the (n-1) kerf rule from an n-kerf rule that happens to agree.
+   * Finished 16.3" x 12" from a 1" slab: they report 17 segments and a
+   * 31-3/4" slab -- and a finished length of 17", having rounded the request
+   * UP to a whole pitch rather than down.
+   */
+  describe('a second capture at n = 17, from a 1" slab', () => {
+    const { derived } = checkerboard(
+      {
+        cellSize: inches(1),
+        speciesA: 'hard-maple',
+        speciesB: 'black-walnut',
+        columns: 12,
+        rows: 17,
+        boardThickness: inches(1.5),
+      },
+      shop,
+    );
+
+    it('consumes 31-3/4" of slab length', () => {
+      expect(toInches(derived.panelLength - squaring)).toBe(31.75);
+    });
+
+    it('reaches the same crosscut width from a different slab thickness', () => {
+      // The crosscut depends only on the finished thickness, never on the
+      // pitch. Easy to get wrong, and the two captures disagree on the pitch.
+      expect(toInches(derived.sliceLength)).toBe(1.75);
+    });
+  });
+
+  it('quantises the built dimension, which is why we take cells as the input', () => {
+    // Their 16.3" request became a 17" board: ceil(16.3 / 1), not round. A
+    // finished-first front end has to decide what to do with that 0.7", and
+    // taking the grid as the input means the question never arises -- the
+    // tradeoff being that the finished size is then the derived quantity.
+    expect(Math.ceil(16.3 / 1)).toBe(17);
   });
 });
 

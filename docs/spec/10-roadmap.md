@@ -143,16 +143,20 @@ picture/cut-list divergence this design exists to eliminate.
 
 ## Open questions for implementation
 
-1. **Old Line golden case (G4).** The worked example needs to be captured from the live tool and
-   committed as a fixture. The other four golden cases are already verified.
-2. **Minimum safe puck size** for crosscutting hex pucks on a sled needs a real number rather
+1. **Minimum safe puck size** for crosscutting hex pucks on a sled needs a real number rather
    than a conservative guess. Currently a shop-profile parameter with a cautious default.
-3. **Guillotine search ordering.** Minimising tree depth minimises glue-ups, but the best search
+2. **Guillotine search ordering.** Minimising tree depth minimises glue-ups, but the best search
    heuristic needs empirical tuning against real painted targets.
-4. **Species data provenance.** Sugar maple appears as both 4.8/9.9 and 4.9/9.5 across sources.
+3. **Species data provenance.** Sugar maple appears as both 4.8/9.9 and 4.9/9.5 across sources.
    The spread is small, but the table carries a `provenance` field per row and the conflict
    should be recorded rather than averaged away
    ([KB-B03](01-woodworking-domain.md#kb-b03--species-movement-data)).
+
+**Resolved since:** the **Old Line golden case (G4)**. Two fixtures were captured from the live
+calculator and committed, so all five golden cases are now verified; it also settled that their
+segment count is `ceil` rather than `round`, and that its squaring allowance sits on the opposite
+side of the finished dimension from ours
+([KB-A13](01-woodworking-domain.md#kb-a13--golden-case-4--old-lines-calculator-run-backwards)).
 
 **Resolved during specification:** the `V-MOVE-010` movement threshold, which was the only
 judgement-call number in the rule set. It is now derived and calibrated against named palettes in

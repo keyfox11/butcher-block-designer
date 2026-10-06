@@ -155,11 +155,12 @@ The anchors. Each is a published, independently-produced result that our formula
 | **G1** | CBDJS defaults: `L=20, D=1.2, s=1.5, kerf=0.125` | slices **12**, length **14.4**, leftover **0.625**, width **6** — exact ([KB-A03](01-woodworking-domain.md#kb-a03--golden-case-1--cbdjs-defaults)) |
 | **G2** | 3D cube closure at `T=1.25` | ripWidth **1.4434**, hexAcrossFlats **2.500** exactly ([KB-A05](01-woodworking-domain.md#kb-a05--the-hexagonal-prism-method-3d-tumbling-block)) |
 | **G3** | 3D cube closure at `T=1.375` | ripWidth **1.5877**, hexAcrossFlats **2.750** exactly |
-| **G4** | Old Line calculator worked example | Slab dimensions, crosscut width, segment count agree |
+| **G4** | Old Line, backwards: finished 18×12×1½ from a ¾" slab | crosscut **1¾"**, **24** segments, **44⅞"** of slab length consumed, ⅛" squaring reserve — and again at `n=17` ([KB-A13](01-woodworking-domain.md#kb-a13--golden-case-4--old-lines-calculator-run-backwards)) |
 | **G5** | `hexAcrossFlats == 2T` identity | Holds for all `T` in range — a closed-form invariant, not a sampled check |
 
-G1–G3 are already verified by hand during specification. G4 must be verified during
-implementation against the live tool.
+All five are verified. G1–G3 were checked by hand during specification; G4 was captured from the
+live calculator and is the only anchor that runs the dimensional model **backwards** (finished
+board → slab), which is why it is worth two fixtures rather than one.
 
 ### 2 — Property-based tests (the strongest layer)
 

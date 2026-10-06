@@ -8,8 +8,8 @@ board feet, a cut list with fence settings, step-by-step build instructions, per
 maps, and a 3-D preview. It refuses to generate a plan it believes is unbuildable, and it tells
 you why.
 
-> **Status: working tool, P2 complete.** 14 patterns, 30 validation rules, 482 tests, CI green.
-> P3 — the free-paint canvas and its decomposer — is next.
+> **Status: working tool, P2 complete.** 14 patterns, 30 validation rules, 491 tests, CI green.
+> The next phase is an open decision — see [`docs/HANDOFF.md`](docs/HANDOFF.md).
 >
 > **Picking this up cold? Read [`docs/HANDOFF.md`](docs/HANDOFF.md) first.** It covers which
 > invariant catches which class of bug, where the code deviates from the spec and why, and the
@@ -170,21 +170,25 @@ cut-list logic are independently testable, and it is why the test suite can be f
 Its output gets acted on with a table saw and several hundred dollars of hardwood, so guessing is
 not acceptable. Four commitments, each mechanically enforced:
 
-**1. Formulas are verified against known results.** Golden cases: CBDJS's published defaults
-reproduce exactly (G1); the 3D-cube closure at `T = 1.25"` and `T = 1.375"` (G2, G3); and the
+**1. Formulas are verified against known results.** Five golden cases, all passing: CBDJS's
+published defaults reproduce exactly (G1); the 3D-cube closure at `T = 1.25"` and `T = 1.375"`
+(G2, G3); Old Line's calculator, captured from the live tool, which is the one anchor that runs
+the dimensional model *backwards* from a finished board to the slab (G4); and the
 `hexAcrossFlats = 2T` identity checked on the *built* geometry rather than on the generator's own
-arithmetic (G5). *G4, Old Line's worked example, is still uncaptured.*
+arithmetic (G5).
 
-**2. Woodworking knowledge is data, not prose.** 24 knowledge-base entries, each with a confidence
-level and sources. Safety rules — such as *never run an end-grain glue-up through a thickness
-planer* — are blocking validation rules. That one is stronger still: the thickness-planer variant
-is **absent from the operation type**, so it is unrepresentable rather than merely rejected.
+**2. Woodworking knowledge is data, not prose.** 29 knowledge-base entries, each with a confidence
+level and sources; the 25 that rules cite are machine-readable in `core/knowledge`, and the rest
+are the derivations and golden-case fixtures the code is checked against. Safety rules — such as
+*never run an end-grain glue-up through a thickness planer* — are blocking validation rules. That
+one is stronger still: the thickness-planer variant is **absent from the operation type**, so it
+is unrepresentable rather than merely rejected.
 
 **3. Invariants, not just examples.** Conservation of mass is checked per node, so a failure names
 the operation at fault. The faces of every cross-section must tile their outline. A non-grid
 lay-up's gaps are found *topologically* — a missing cell is an enclosed ring, located exactly,
 rather than a number that has to beat a tolerance. Property-based tests over randomly generated
-graphs; 482 tests in total.
+graphs; 491 tests in total.
 
 Settings are checked for *liveness*: every field in the shop profile is pushed to a hostile value
 and the generated plan must change. A knob the user can set that nothing reads is worse than an

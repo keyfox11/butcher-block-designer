@@ -313,6 +313,64 @@ Rough-stock yield after defects, milling, and squaring: **65% default** (range 5
 Waste factors by stock grade: clear S4S with straight cuts 12–15%; typical mixed-cut project
 18–20%; rough-sawn 25–30%.
 
+### KB-A13 — Golden case 4 — Old Line's calculator, run backwards
+**[derived]**
+
+The second verification anchor, and the more useful of the two, because it runs
+[KB-A02](#kb-a02--the-dimensional-relationships) in the opposite direction.
+[KB-A03](#kb-a03--golden-case-1--cbdjs-defaults) goes slab → board; this goes board → slab. A
+formula set that satisfies both is pinned from both ends.
+
+Captured from the [live calculator](https://oldlinewoodcraft.com/toolbox/end-grain-strips) in
+Mode 1 ("I know the board I want"), orientation "build the length". Two rows, because one cannot
+distinguish an `(n−1)`-kerf rule from an `n`-kerf rule that happens to agree at that `n`.
+
+| Input | Row 1 (its shipped defaults) | Row 2 |
+| --- | --- | --- |
+| finished length (the built dimension) | 18" | 16.3" |
+| finished width (preserved) | 12" | 12" |
+| finished thickness | 1½" | 1½" |
+| face-grain slab thickness `D` (the pitch) | ¾" | 1" |
+| kerf · cleanup per face · end-trim | ⅛" · ⅛" · ⅛" | ⅛" · ⅛" · ⅛" |
+| **slab to build** | **44⅞" × 12⅛" × ¾"** | **31¾" × 12⅛" × 1"** |
+| **crosscut width** | **1¾"** | **1¾"** |
+| **segments** | **24** | **17** |
+| **kerf loss** | **2⅞"** (23 × ⅛") | 2" (16 × ⅛") |
+| **board feet (slab)** | **2.83 BF** | — |
+| **finished length delivered** | 18" | **17"** |
+
+Its formula set, in our terms:
+
+```
+n          = ceil(builtDim / D)                  // end-trim NOT included
+builtDim   = n * D                               // so the request can be overshot
+s          = finishedThickness + 2 * cleanup     // the crosscut width
+slabLength = n * s + (n - 1) * kerf
+slabWidth  = preservedDim + endTrim
+boardFeet  = slabLength * slabWidth * D / 144
+```
+
+Three things this capture settled that guesswork would have got wrong:
+
+- **`ceil`, not `round`.** Row 2 asks for 16.3" and is given 17 segments — a 17" board. The
+  published prose says a small end-trim is "absorbed by rounding"; row 1 shows why that is
+  consistent, since 18/¾ divides exactly and still reports 24 rather than 25. The end-trim never
+  enters the segment count.
+- **The quantisation is silent.** Row 2's extra 0.7" is not flagged. Any finished-first front end
+  has to decide what to do with it; our generators sidestep the question by taking the **grid**
+  as the input and deriving the finished size (see the convention note below).
+- **The squaring allowance is placed on the opposite side.** Old Line *adds* ⅛" to the slab, so
+  you get the board you asked for. We *subtract* `2 × trimPerEdge` from the nominal grid, so a
+  16 × 24 grid of ¾" cells finishes at 11⅞" × 17⅞". Both reserve the same ⅛"; only the
+  parameterisation differs. Asserting their raw slab dimensions against ours would therefore
+  encode our convention as if it were theirs — so golden test G4 asserts the slab length
+  consumed by crosscutting and the *size* of the reserve, which are convention-independent.
+
+Also confirmed, independently of our own sources: the ⅛"-per-face cleanup default, the
+`(n−1)` kerf count, the 1.5–2.5× material multiplier ([KB-A12](#kb-a12--material-budget)), and
+that board feet are computed on the **planed** slab rather than on rough stock. This is golden
+test #4 in [`08`](08-architecture-and-stack.md#testing-strategy).
+
 ---
 
 ## Part B — Wood movement and structure
