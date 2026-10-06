@@ -1,11 +1,12 @@
 # Butcher Block Designer
 
-A design spec for an end-grain cutting board / butcher block pattern designer that gives you
-full creative freedom **without** sacrificing a cut list you can actually trust at the saw.
+An end-grain cutting board / butcher block pattern designer that gives you full creative freedom
+**without** sacrificing a cut list you can actually trust at the saw.
 
-> **Status: P0 and P1 complete.** 10 patterns, 22 validation rules, cut list with allowance
-> ledger, build instructions, assembly maps, 2-D and 3-D previews, and shareable designs.
-> 238 tests; CI green. P2 (multi-stage: 3D cube, true herringbone) is next.
+> **Status: P0, P1 and P2 complete.** 14 patterns including the 3D tumbling block, true
+> herringbone, pinwheel and basket weave; 27 validation rules; cut list with allowance ledger,
+> build instructions, assembly maps, 2-D and 3-D previews, and shareable designs.
+> 443 tests; CI green. P3 (free-paint canvas and the decomposer) is next.
 >
 > **Picking this up cold? Read [`docs/HANDOFF.md`](docs/HANDOFF.md) first.** It covers where the
 > code deviates from the spec and why, which invariant catches which class of bug, and the traps

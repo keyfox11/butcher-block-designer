@@ -244,9 +244,10 @@ Ports: one per slice. Consumes `count * (sliceLength + kerf) - kerf` of the inpu
 interface LaminateOp {
   kind: 'laminate';
   members: LaminateMember[];
-  glue: GlueSpec;
-  /** Sequencing hint. Angled joints slide under clamp pressure (KB-A11). */
-  sequence: 'simultaneous' | 'rowByRow';
+  /** How members are positioned, and so how the outline is derived. */
+  placement?: 'explicit' | 'butted' | 'free';
+  /** How the glue-up is closed up. Angled joints slide under clamps (KB-A11). */
+  sequence: 'simultaneous' | 'rowByRow' | 'taped';
 }
 
 interface LaminateMember {
@@ -257,7 +258,8 @@ interface LaminateMember {
    * the honeycomb tiling of hex pucks (KB-A05).
    */
   offset: { x: Ticks; y: Ticks };
-  rotation: MilliDeg;
+  /** Turn about the member's own length axis, before gluing. */
+  rotate: MilliDeg;
   mirrored: boolean;
 }
 ```
@@ -265,6 +267,55 @@ interface LaminateMember {
 The general 2-D placement is the single most important difference from the reference tools. A
 layer-stack model can only append along one axis; this can place a piece anywhere, which is what
 a honeycomb, a pinwheel, or a brick offset actually requires.
+
+### `placement` — three ways to decide where a member goes
+
+`explicit` uses each member's own offset and takes the outline to be their bounding box. Right
+for a grid, where the designer chooses the layout and the result really is a rectangle.
+
+`butted` ignores the offsets and pushes members together along x until their mating edges
+coincide, which is what clamps actually do. Required once any cut is bevelled: slanted strips
+interlock, so their bounding boxes overlap — measured at 68% on a 15° bevel — and an explicit
+offset would have to re-derive the trigonometry in every generator.
+
+`free` uses the offsets and takes the outline to be the **true union** of the members
+([`03`](03-geometry-engine.md#the-union-outline)). Required for any assembly that is not a
+rectangle, a honeycomb above all, where a bounding-box outline would claim material that is not
+there and every downstream dimension would be wrong.
+
+### `rotate` — and why a boolean is not enough
+
+**Revised during P2.** P0 and P1 implemented this as `rotate180: boolean`, which covers every
+grid pattern: a checkerboard offsets its rows by reversing a slice's species sequence, and half a
+turn does that exactly.
+
+It is not enough for a tumbling block. A 60° rhombus has 180° rotational symmetry, so half-turns
+and mirroring between them only ever reach **two** of the three orientations a hexagon needs
+([KB-A05](01-woodworking-domain.md#kb-a05--the-hexagonal-prism-method-3d-tumbling-block)); the
+third requires a real rotation. Physically it is the cheapest operation in the shop — you roll
+the stick in your hand before the glue goes on.
+
+It also does a second job. Turning a finished end-grain block about its **vertical** axis leaves
+the grain vertical, because the block is a prism and the grain runs along the extrusion. That is
+what makes true herringbone, pinwheel, and basket weave reachable without a mitered crosscut,
+which would shear the grain off perpendicular and cost the board its self-healing
+([KB-A07](01-woodworking-domain.md#kb-a07--mitered-crosscuts-produce-oblique-prisms)).
+
+Half-turns stay on the exact integer path, because they are the overwhelmingly common case and
+must not acquire rounding error they never had. Any other angle lands vertices off the tick grid
+and is rounded, which the union's vertex welding is sized to absorb.
+
+### `sequence` — including the one that is not clamping
+
+`taped` is not a weaker form of clamping. Three rhombi meeting around a shared line have **no
+clamping axis at all**: pressure from any direction pushes one of them out somewhere else.
+Painter's tape stretched across the joints acts as a tension band and pulls them together from
+every side at once (KB-A05). The instruction generator drops the clamp-pressure arithmetic
+entirely for these, rather than quoting a pressure tape cannot reach.
+
+> **Deviation from this spec:** `LaminateOp` carries no `glue: GlueSpec` field. Glue choice is a
+> project-level decision rather than a per-joint one — every joint in these boards takes the same
+> adhesive — and the clamp-pressure calculation reads the joint area from the geometry.
 
 All members must have equal `length` — you cannot glue a 1.5" slice to a 2" slice and get a flat
 board. Enforced as invariant **I-4**.
@@ -312,14 +363,32 @@ interface TrimOp {
   kind: 'trim';
   input: Ref;
   target:
-    | { kind: 'rect'; width: Ticks; height: Ticks }
+    | {
+        kind: 'rect';
+        width: Ticks;
+        height: Ticks;
+        /** Lower-left of the cut. Omit to centre it. */
+        anchor?: { x: Ticks; y: Ticks };
+      }
     | { kind: 'outline'; polygon: Polygon };
 }
 ```
 
-`rect` is end-trimming and squaring. `outline` handles the jagged edge left by a honeycomb tiling
-(KB-A05) — the tool must plan that trim, since ignoring it means the stated finished dimensions
-are wrong.
+`rect` is end-trimming and squaring. It is also how the jagged edge left by a honeycomb tiling
+(KB-A05) is resolved — the tool must plan that trim, since ignoring it means the stated finished
+dimensions are wrong.
+
+**A trim has a position, not just a size.** Omitting the anchor centres the target, which is what
+squaring up a panel means: take the same off both edges. That default is wrong for every non-grid
+lay-up. A honeycomb or a herringbone has a ragged border whose depth differs from side to side, so
+a centred cut can land in the ragged zone on one edge while leaving a sliver of extra material on
+the opposite one — measured on the pinwheel at P2, the bounding box ran to 13.5" where the fully
+covered region ended at 12.25". A generator knows exactly which rectangle it covered, so it says
+so. The engine refuses a target that sits partly outside the workpiece rather than cutting air.
+
+> **Deviation from this spec:** `outline` trimming is not implemented. Every edge resolution the
+> pattern library needs — trim through, grow to whole lattice periods — is an anchored `rect`, and
+> an unimplemented branch that throws is more honest than one that silently approximates.
 
 ## Edge treatments are not operations
 

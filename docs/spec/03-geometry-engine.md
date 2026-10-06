@@ -67,6 +67,40 @@ A general boolean library would be a large dependency doing less verifiably what
 property-tested lines do exactly. If P2's honeycomb needs true unions of non-adjacent regions,
 revisit — but note that butted lamination handled every angled pattern in P1 without one.
 
+### The union outline
+
+> **Added during P2.** The honeycomb did need a union, and it still did not need a library. The
+> prediction above was half right, and the half it got wrong is the interesting half.
+
+Through P1 every lamination produced a rectangle or a parallelogram, so its outline could simply
+be *written down*: a bounding box for grids, a quadrilateral for butted bevelled strips. Hexagons
+do not tile a rectangle. The union of hex pucks on a lattice is a jagged polygon with no closed
+form, and a bounding-box outline would claim material that is not there.
+
+The union is computed **topologically** rather than geometrically, which is what keeps it exact
+and dependency-free. Faces in this model are placed edge to edge and never overlap, so every
+shared glue line appears twice — once in each direction, because both faces are wound
+counter-clockwise. Cancel the pairs and what remains is precisely the boundary. Stitch those
+survivors into rings, taking the most clockwise turn at any vertex where several meet, and the
+outer boundary comes back counter-clockwise with enclosed voids clockwise.
+
+Three details carry the weight:
+
+1. **Edges are split at interior vertices first.** Without that, cancellation fails at a
+   T-junction: one long edge against two short ones matches nothing.
+2. **Vertices are welded.** A hexagon's vertices are irrational multiples of the stock thickness,
+   so a corner reached through a rotation and a corner reached through a placement offset can land
+   a tick or two apart. The weld radius is 4 ticks (1/2000"), three orders of magnitude below the
+   narrowest feature the tool will build, so it cannot merge two corners that are genuinely
+   distinct.
+3. **Holes are the gap check.** This is the real gain. `laminate` finds a gap by comparing areas
+   against a tolerance, so a missing cell has to beat the accumulated snapping error of the whole
+   panel. A union knows its own topology: a missing cell is an enclosed ring — found exactly, at
+   any size, with a position to show the user.
+
+A disconnected result is reported too, and means something specific: no clamp arrangement glues
+that assembly in one operation.
+
 ## Cuts as polygon subtraction
 
 A saw cut is not a zero-width line — it removes a slab of material one kerf wide. Modelling it

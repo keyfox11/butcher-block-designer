@@ -202,9 +202,22 @@ attached, so the trade-off is the user's to make rather than hidden.
 | Zig-zag | intermediate | 2 | Bevel-ripped strips; alternate slices flipped ([KB-A06](01-woodworking-domain.md#kb-a06--angled-layer-boundaries-bevel-ripped-strips)) |
 | Chevron | intermediate | 2 | Zig-zag with mirrored rather than repeated rows |
 | Snake skin | intermediate | 2 | Progressive trailing angles across the layer stack |
-| Spiral / pinwheel | advanced | 3 | Tiles rotated in 90° increments, as per herringbone |
-| Basket weave | advanced | 3 | Paired strips alternating orientation |
+| Spiral | intermediate | 2 | Angles sweep across the stack with alternate slices rotated. The single-stage angled spiral, not the multi-stage pinwheel. |
 | Stochastic | beginner | 2 | Seeded random species assignment on a grid |
+| **3D cube** | advanced | 2 | Honeycomb of hex prisms, each from three bevel-ripped rhombi ([KB-A05](01-woodworking-domain.md#kb-a05--the-hexagonal-prism-method-3d-tumbling-block)) |
+| **Herringbone** | advanced | 2 | Striped 2:1 tiles in diagonal runs, alternate ones turned 90° |
+| **Pinwheel** | advanced | 2 | Four striped tiles round an accent square, in a 3u × 3u block |
+| **Basket weave** | intermediate | 2 | Square striped tiles alternating a quarter turn |
+
+The four multi-stage patterns land at **two** glue-ups, not three. Each is a stage-1 striped panel
+or hex prism, then the final lay-up — the tile's internal pattern comes from the stage-1 panel
+rather than from a separate stage. Counting them as three would overstate the commitment, and the
+count is on the pattern chip precisely so a user can judge that before buying lumber.
+
+The tile geometry follows from the stock thickness alone. A stage-1 panel of `n` strips ripped
+from stock `T` thick is `n × s` wide and `T` thick; crosscut and stood on end, that panel face *is*
+the tile. Herringbone and pinwheel want a 2:1 tile, so `n × s = 2T`; basket weave wants a square
+one, so `n × s = T`. One number on the planer sets the whole pattern.
 
 **Stochastic** deserves a note: it is trivial to implement and disproportionately fun. A seed
 makes it reproducible, so a design can be shared and rebuilt, and the seed goes in the project

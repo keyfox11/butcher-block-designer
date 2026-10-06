@@ -74,6 +74,17 @@ This is the phase where the central architectural bet pays off. If the construct
 is right, these patterns are a generator each. If it is wrong, this is where that becomes
 obvious — which is why it comes before the free-paint surface that depends on the same machinery.
 
+> **Outcome.** The bet paid, with one genuine extension rather than a special case. The honeycomb
+> needed something the vocabulary could not express — the outline of an assembly that is not a
+> rectangle — so the vocabulary gained a **true union** ([`03`](03-geometry-engine.md#the-union-outline))
+> and `LaminateMember.rotate` was widened from a half-turn flag back to the `MilliDeg` this
+> document originally specified. Both are used by every multi-stage pattern, not just the one that
+> forced them, which is the test of whether an extension was the right shape.
+>
+> Each of the four patterns is a generator. None required the engine to know what pattern it was
+> drawing. `V-GEOM-040` was narrowed to the part that is real before the decomposer exists — see
+> [`04`](04-validation-rules.md#v-geom-040--the-constructibility-proof).
+
 ---
 
 ## P3 — Creative freedom

@@ -168,6 +168,31 @@ A clean "no" with the offending region highlighted is a far better outcome than 
 cannot be followed. This rule is also the engine behind the free-paint decomposer
 ([`07`](07-pattern-library.md#the-decomposer)).
 
+> **Scope as implemented at P2.** The decomposition above is a P3 component, and belongs with the
+> free-paint surface that needs it: a design built from a construction graph is constructible by
+> construction, so there is nothing for the guillotine search to prove. What `V-GEOM-040` checks
+> today is the part that is real now — that every lamination has a feasible **assembly sequence**.
+> A free-placement lay-up whose members are spread in two directions has no single clamping axis:
+> pressure across the board leaves the joints along it open, and the pieces slide. The rule
+> requires such a glue-up to declare `rowByRow` or `taped` rather than `simultaneous`.
+
+### `V-GEOM-050` and the union: layered, not redundant
+
+These two look like the same check and are not, which is worth stating because the first instinct
+is to delete one.
+
+The **union** asks whether the rhombi agree with *each other*. Three sticks that are not 60°
+rhombi do not close, and the assembly comes apart into disconnected pieces — found exactly, for
+any error larger than the weld radius. It fires first, and it is the better failure.
+
+**`V-GEOM-050`** asks whether the hexagon agrees with the *stock it was cut from*, which is the
+band underneath. That is not hypothetical: during P2 the generator rounded `T × tan(30°)` instead
+of `T / cos(30°)` to land the lattice on exact integers. The hexagon assembled perfectly and came
+out two ticks wide, because across-flats is `ripWidth × √3` — so rounding that quantity violates
+the identity rather than preserving it. The union was blind to it; the identity caught it.
+
+The rule also becomes the primary guard the moment graphs can be edited by hand.
+
 ### `V-GEOM-050` — the free correctness check
 
 From [KB-A05](01-woodworking-domain.md#kb-a05--the-hexagonal-prism-method-3d-tumbling-block), a

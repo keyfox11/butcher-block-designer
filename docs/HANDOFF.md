@@ -7,7 +7,7 @@ The spec in [`docs/spec/`](spec/) is the design. The commit messages carry the d
 for individual changes. This file carries what sits *between* them: why the code deviates from the
 spec where it does, which invariant catches which class of bug, and the traps that cost time.
 
-**Status:** P0 and P1 complete. P2 is next. 238 tests, CI green.
+**Status:** P0, P1 and P2 complete. P3 is next. 443 tests, CI green.
 
 ---
 
@@ -17,11 +17,11 @@ spec where it does, which invariant catches which class of bug, and the traps th
 | --- | --- | --- |
 | **P0** — correctness core | ✅ done | Checkerboard cut list reproduces CBDJS golden case G1 exactly; ledger traces every dimension to rough stock; conservation holds over random graphs |
 | **P1** — angles, 3-D, sharing | ✅ done | All five CBDJS examples reproduce with correct cut lists and 3-D previews; share links 223–263 chars against a 2,000 budget |
-| **P2** — multi-stage | ⬜ next | 3D cube from a single `stockThickness` with `hexAcrossFlats == 2T` verified; true herringbone with grain perpendicular throughout |
-| P3 — free paint + decomposer | ⬜ | |
+| **P2** — multi-stage | ✅ done | 3D cube from a single `stockThickness` with `hexAcrossFlats == 2T` verified on the built geometry; honeycomb assembly map labels all 35 pucks; two explicit edge resolutions; herringbone, pinwheel and basket weave with grain perpendicular throughout and no mitered crosscut anywhere |
+| P3 — free paint + decomposer | ⬜ next | |
 | P4 — edge treatments, polish | ⬜ | |
 
-Implemented: 10 patterns, 22 validation rules, cut list + allowance ledger + instructions +
+Implemented: 14 patterns, 27 validation rules, cut list + allowance ledger + instructions +
 assembly maps, 2-D canvas, 3-D viewport, share links, project files, shop profile UI.
 
 ---
@@ -33,12 +33,17 @@ one looks like an oversight if you meet it cold.
 
 | Spec originally said | Actual | Why |
 | --- | --- | --- |
-| `Ticks` = 1/1000 inch | **1/8000 inch** | 1/1000 cannot represent 1/32" (= 31.25), which is the tool's own default precision. 8000 = LCM(64, 1000) handles both binary fractions *and* 3-decimal input. A power of two fails too — 1/1024 cannot represent 1.2". |
-| Use `clipper2-js` | **No boolean library** | The vocabulary only needs half-plane clips and non-overlapping placement. ~60 property-tested lines. |
+| `Ticks` = 1/1000 inch | **1/8000 inch** | 1/1000 cannot represent 1/32" (= 31.25), the tool's own default precision. 8000 = LCM(64, 1000) handles both binary fractions *and* 3-decimal input. A power of two fails too — 1/1024 cannot represent 1.2". |
+| Use `clipper2-js` | **No boolean library** | Half-plane clips plus a topological union. ~200 property-tested lines, no dependency. |
 | React 18 | **React 19** | `@react-three/fiber@9` requires it. |
 | CBOR for URLs | **JSON + deflate** | The generator fast path makes payloads ~200 chars; CBOR bought nothing. |
 | `RipOp.keepRemainder` | **removed** | A rip physically *always* produces a remainder. Whether anything uses it is a question about the graph, not a parameter of the operation. |
-| — | **`LaminateOp.placement: 'butted'`** added | Bevelled strips interlock, so bounding-box placement overlaps them by up to 68%. Butting expresses the physical act. |
+| `LaminateOp.glue: GlueSpec` | **absent** | Glue choice is project-level, not per-joint; clamp pressure reads joint area from the geometry. |
+| `TrimOp` `outline` target | **not implemented** | Every edge resolution needed is an anchored `rect`. A branch that throws beats one that silently approximates. |
+| — | **`LaminateOp.placement`** added | `explicit` \| `butted` \| `free`. See below. |
+| — | **`LaminateOp.sequence: 'taped'`** added | A real third method, not a weaker clamp. |
+| — | **`TrimOp` anchor** added | A trim has a position, not just a size. |
+| `rotate180: boolean` (P0/P1) | **`rotate: MilliDeg`** | Restores what the spec always said. P0/P1 narrowed it; the hexagon needs the general form. |
 
 ---
 
@@ -64,6 +69,27 @@ billet out and truncated the last strip to the wrong **shape**. Mass was conserv
 
 > Conservation is the strongest invariant but not the broadest. Keep both.
 
+### Union topology — catches gaps the area check is too blunt to see
+
+Added at P2. `laminate` finds a gap by comparing areas against a tolerance, so a missing cell has
+to beat the accumulated snapping error of the whole panel. A union knows its own topology: a
+missing cell is an **enclosed ring** — found exactly, at any size, with a position.
+
+Caught: swapped tile rotations in herringbone and pinwheel, which produced overlaps and voids that
+no area tolerance would have separated from noise.
+
+### The 2T identity — catches what the topology check is blind to
+
+`V-GEOM-050`. These two look redundant and are not, and it is worth knowing which asks what:
+
+- The **union** asks whether the rhombi agree with *each other*. Fires first, on any error larger
+  than the weld radius.
+- **`V-GEOM-050`** asks whether the hexagon agrees with the *stock*. That is the band underneath.
+
+Caught: the generator rounding `T × tan(30°)` instead of `T / cos(30°)`, to land the lattice on
+exact integers. The hexagon assembled perfectly and came out two ticks wide — because across-flats
+is `ripWidth × √3`, so rounding *that* quantity violates the identity rather than preserving it.
+
 ### Citation integrity — catches knowledge drifting out of the knowledge base
 
 Every validation rule must cite a KB entry that exists. Caught `V-GEOM-030` citing `KB-A06`,
@@ -73,11 +99,25 @@ which existed in the spec document but had never been added to `core/knowledge/k
 
 Caught the tolerance bug at **3 layers, −24.338°**. No hand-picked fixture would have found it.
 
+### Walking the registry with the app's own defaults
+
+Added at P2, and it earned itself immediately: basket weave failed on the default stripe count,
+because its tile is square and therefore half as long as a 2:1 tile. A user clicking it would have
+met an error. **A pattern that only works at hand-picked settings is a pattern that greets its
+first user with a crash.**
+
 ### Reading the generated output
 
-Caught two things no test asserted: instructions quoting a **1/32"** per-pass limit when the
-profile said **1/64"** (`formatTicks` rounds; a limit must *floor*), and assembly maps numbering
-80 cells when the builder picks up 10 slices.
+Still the broadest net, and it caught the worst bug in P2.
+
+- Instructions quoted a **1/32"** per-pass limit when the profile said **1/64"** (`formatTicks`
+  rounds; a limit must *floor*).
+- Assembly maps numbered 80 cells when the builder picks up 10 slices.
+- The allowance ledger printed a **3" × 0" board** beside a picture of a 12" × 15" one. It encoded
+  the two-stage model directly — finished width *is* the stage-1 panel's width, finished length
+  *is* slice count × pitch — which is exactly right for a checkerboard and meaningless for a
+  honeycomb, where the stage-1 assembly is a hex prism and consecutive pucks share a row so the
+  pitch reads zero. **Every ledger test was written against grid patterns, so nothing caught it.**
 
 ---
 
@@ -104,7 +144,11 @@ parallelogram; its bounding box includes triangular wedges the gap check reads a
 **`SNAP_TICKS_PER_UNIT_BOUNDARY = 2`** is √2 rounded up: a snapped vertex moves up to √2/2 ticks,
 and two faces sharing a boundary can move oppositely. The tolerance counts **every** boundary in
 an assembly including internal face edges — bounding by outlines alone is ~3.5% too tight at 24°.
-A genuinely missing 1½" cell is still ~40× above the bound, so the check keeps its teeth.
+
+**`WELD_TICKS = 4`** is the union's tolerance, and it is a different number for a different reason:
+each rounding step (member geometry, rotation, placement offset) moves a vertex up to half a tick,
+two members meeting at a corner each carry that, so three is the worst case and four is the next
+integer. It is 1/2000", a thousandth of the narrowest feature the tool will build.
 
 **Bevelled strips have two different widths.** `width ± thickness × tan(angle)`. Both faces must
 be checked (`V-GEOM-030`); CBDJS checks one direction only. Setup cuts must include the drift or
@@ -113,6 +157,20 @@ they compute to a negative width (−0.366" at 30°).
 **`reorient` is a no-op on geometry.** It relabels which axis is "up". If it ever transforms
 coordinates, the model is wrong.
 
+**Round `j × pitch`, never `j × round(pitch)`.** A lattice whose pitch is irrational (the honeycomb
+row pitch is `T√3`) accumulates half a tick per row otherwise, which exceeds the weld radius by
+row eight. The *double* row period is exactly `3 × ripWidth` — an integer — which is what
+`growToWhole` snaps to.
+
+**A lay-up must overhang the finished size.** Covering the target exactly leaves the saw nothing
+to remove wherever a cell edge lands on the trim line; in the model that shows up as one-tick
+notches along the finished edge. This is the same reason you never cut a panel to final size and
+hope.
+
+**Trims on non-grid lay-ups must be anchored, not centred.** A ragged border has different depth on
+each side, so a centred cut lands in the ragged zone on one edge while leaving a sliver on the
+other. Measured on the pinwheel: bounding box 13.5", covered region ending at 12.25".
+
 ---
 
 ## 5. Traps that cost time
@@ -120,65 +178,50 @@ coordinates, the model is wrong.
 - **Vite base path breaks HMR.** The GitHub Pages prefix is applied **only** to production builds.
   With it in dev, the HMR socket cannot connect and every edit silently serves a **stale module**.
   This produced a `Bounds is not defined` error against code that already had the import.
-- **Bash heredocs are fragile here.** `python - <<'PY' || node -e '...'` hung forever on stdin
-  (no python installed; `||` never fires because the left side never *exits*). Apostrophes in
-  prose break single-quoted `node -e` scripts. Use `Write`/`Edit` for prose, and `command -v`
-  rather than `||` when the left side reads stdin.
+- **Bash heredocs are fragile here.** A 300-line `cat > file <<'EOF'` of TypeScript failed to parse
+  mid-content; `python - <<'PY' || node -e '...'` hung forever on stdin (no python installed, and
+  `||` never fires because the left side never *exits*). Use `Write`/`Edit` for source files, and
+  `command -v` rather than `||` when the left side reads stdin. Short heredocs are fine.
 - **Browser screenshots go blank when the window is backgrounded.** The page is fine. Verify with
   `get_page_text` or `javascript_tool` instead — that is how the assembly maps were checked.
+- **HMR resets the app's view state.** After an edit the UI is back on the default pattern and the
+  Face tab; re-select before reading the DOM, or you will read the checkerboard's output and think
+  the new pattern is broken.
 - **Console buffers are stale after a server restart.** Old errors keep their old URLs; check the
   URL in the stack trace before believing an error is current.
 
 ---
 
-## 6. P2 — what's next
+## 6. P3 — what's next
 
-**Goal:** the patterns no existing tool can express.
+**Goal:** the free-paint tier — paint a mosaic, have the tool find a build for it.
 
-- Multi-stage sub-assemblies (KB-A04)
-- Non-grid lamination: honeycomb lattice placement and edge resolution
-- Generators: **3D cube / tumbling block**, true herringbone, pinwheel, basket weave
-- `V-GEOM-050` hex closure check; `V-GEOM-040` constructibility proof
-- Complete `V-MOVE-*`, `V-GRAIN-*`, `V-FOOD-*`, `V-TOL-*` rule sets
-- Full species table with provenance; custom species
-- Graph view (tier 3)
+- Paint and region-draw editing on the 2-D canvas (tier 2)
+- `core/decompose`: grid detection → guillotine search → band segmentation → known tilings
+- Target-versus-achieved display; unreachable-region reporting; snap-to-buildable with diff
+- Image import with quantisation preview
+- Worker-based decomposition with progress and cancel
+
+### What P2 leaves in place for it
+
+`V-GEOM-040` is currently narrowed to clampability (see
+[`04`](spec/04-validation-rules.md#v-geom-040--the-constructibility-proof)). Its full form — the
+guillotine/lamination/tiling decomposition — **is** the decomposer, so it should be built once, in
+`core/decompose`, and the rule should call it rather than the two growing separate implementations.
+
+The union outline is the piece most likely to be load-bearing here: a painted region's buildability
+is a question about whether its faces can be grouped into assemblies that each tile a rectangle,
+and the hole/disconnection reporting already answers the sub-question "does this group of faces
+form one connected piece with no voids".
 
 ### The riskiest assumption
 
-> P2 is where the construction-graph bet gets tested.
+> P3 is the one component that may not fully succeed, and the spec says so.
 
-If the honeycomb and herringbone generators need operations **outside** the vocabulary in
-[`02`](spec/02-construction-graph.md#operations), that is a signal to **extend the vocabulary**,
-not to special-case the generators. Special-casing would reintroduce exactly the picture/cut-list
-divergence this design exists to eliminate.
-
-### Geometry already derived and verified for P2
-
-The 3D cube is **not** a grid and **not** the two-stage method. From
-[KB-A05](spec/01-woodworking-domain.md):
-
-```
-bevel            = 30° from vertical (60° from the table)
-ripWidthOnFace   = T / cos(30°) = 1.154700 × T     ← the closure condition
-hexAcrossFlats   = 2 × T                           ← EXACT; free correctness check
-hexAcrossCorners = 2.309401 × T
-
-honeycomb lattice (pointy-top):
-  dx = 2T,  dy = T√3,  alternate rows offset by T
-```
-
-Three 60° rhombi close exactly because each contributes its 120° corner (3 × 120° = 360°).
-Verified: T = 1.25" → rip 1.4434", across-flats exactly 2.500".
-
-**Build consequences:** honeycomb tiling leaves a jagged board edge (trim / filler / grow-to-whole
-— all three are specced in [`03`](spec/03-geometry-engine.md)), and three rhombi glued around a
-shared line cannot be clamped conventionally — painter's tape as a tension wrap is the documented
-technique.
-
-**True herringbone** depends on one observation that makes its third stage free: *rotating a
-finished end-grain block 90° about its vertical axis keeps the grain vertical*. So tiles can be
-rotated into a second orientation without compromising the end grain — which is what herringbone
-needs, and why the mitered shortcut (`V-GRAIN-020`) is not required.
+The honest failure mode is a decomposer that *almost* works — producing a graph for most painted
+targets and quietly approximating the rest. Approximating is the one thing it must not do. A clear
+refusal naming the offending regions is a better product than a cut list that cannot be followed,
+and the machinery to say exactly which faces are unreachable already exists.
 
 ---
 
@@ -188,9 +231,11 @@ needs, and why the mitered shortcut (`V-GRAIN-020`) is not required.
 | --- | --- |
 | **Golden case G4** | Old Line's worked example was never captured. G1, G2, G3, G5 are verified. Capture from the live tool and commit as a fixture. |
 | **Pages on a private repo** | GitHub Pages serves from a private repo only on a paid plan. Repo is private, plan unknown. Resolve before writing a deploy workflow — CI builds but does not publish. Options in [`08`](spec/08-architecture-and-stack.md#open-dependency-pages-requires-a-paid-plan-on-a-private-repo). |
-| **Minimum safe puck size** | For crosscutting hex pucks on a sled. Currently a conservative shop-profile default; P2 needs a real number. |
+| **Minimum safe puck size** | For crosscutting hex pucks on a sled. Still a conservative shop-profile default; the tumbling block now exercises it, so a real number is measurable. |
+| **Multi-stage material cost** | A tumbling block runs ~3.6× finished volume and herringbone ~3.1×, against KB-A12's 1.5–2.5× band for an ordinary end-grain board. `V-MAT-020` warns and now names where the wood goes. Whether the band should scale with pattern class is a judgement call left open rather than guessed. |
+| **Display precision vs fence settings** | At the default 1/32", a rip width of 1.7321" prints as 1 23/32" — 0.014" off. Fine for a grid pattern, marginal for a hexagon where the error compounds across three joints. Consider defaulting bevel-rip fence settings to 1/64". |
 | **Sugar maple provenance** | Sources give both 4.8/9.9 and 4.9/9.5. Recorded, not averaged. |
-| **Bundle size** | `BoardScene` chunk is ~1 MB (275 kB gzipped). Lazy-loaded, so it is off the first paint. Acceptable; revisit only if P2 adds more 3-D. |
+| **Bundle size** | `BoardScene` chunk is ~1 MB (275 kB gzipped). Lazy-loaded, so it is off the first paint. |
 
 ---
 
