@@ -9,7 +9,7 @@ import { boardDimensions } from '../geometry/evaluate.js';
 import { kb, type KbId } from '../knowledge/kb.js';
 import { SPECIES } from '../knowledge/species.js';
 import type { NodeId } from '../model/types.js';
-import { formatLimit, formatTicks, inches, toInches } from '../units/ticks.js';
+import { formatLimit, formatTicks, inches, ticks, toDegrees, toInches, toRadians } from '../units/ticks.js';
 import type { Finding, Rule, Severity, ValidationContext } from './types.js';
 
 function finding(
@@ -155,6 +155,79 @@ const SAFE_040: Rule = {
 /* V-TOOL — tooling envelope                                                   */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Maximum depth of cut at a given bevel.
+ *
+ * Interpolated between the shop profile's two MEASURED points rather than
+ * computed from cos(bevel). A typical 10" saw cuts 3 1/8" at 90 degrees and
+ * 2 1/4" at 45 -- a ratio of 0.72 against cosine's 0.707, so the cosine model
+ * overstates the saw's reach. Overstating a limit is the dangerous direction.
+ */
+export function maxCutDepth(shop: ValidationContext['shop'], bevel: number): number {
+  const degrees = Math.abs(toDegrees(bevel));
+  const t = Math.min(degrees, 45) / 45;
+  return shop.bladeDepthAt90 + t * (shop.bladeDepthAt45 - shop.bladeDepthAt90);
+}
+
+const TOOL_010: Rule = {
+  id: 'V-TOOL-010',
+  category: 'tooling',
+  cites: ['KB-D01'],
+  check(ctx) {
+    const out: Finding[] = [];
+    for (const node of Object.values(ctx.project.graph.nodes)) {
+      if (node.op.kind !== 'rip') continue;
+      const thickness = ripStockThickness(ctx, node.op.input);
+      for (const [index, strip] of node.op.strips.entries()) {
+        const available = maxCutDepth(ctx.shop, strip.bevel);
+        if (thickness > available) {
+          out.push(
+            finding(TOOL_010, 'error', {
+              nodes: [node.id],
+              message:
+                `Cut ${index + 1} must pass through ${formatTicks(ticks(thickness))} of stock, but ` +
+                `at ${toDegrees(strip.bevel).toFixed(1)}° the saw reaches only ` +
+                `${formatLimit(ticks(Math.round(available)))}.`,
+              remedy: 'Use thinner stock, a shallower bevel, or a larger blade.',
+              data: { thickness, available, bevel: strip.bevel },
+              dedupeKey: 'cut-depth',
+            }),
+          );
+        }
+      }
+    }
+    return out;
+  },
+};
+
+const TOOL_030: Rule = {
+  id: 'V-TOOL-030',
+  category: 'tooling',
+  cites: ['KB-D02'],
+  check(ctx) {
+    const out: Finding[] = [];
+    for (const node of Object.values(ctx.project.graph.nodes)) {
+      if (node.op.kind !== 'rip') continue;
+      for (const [index, strip] of node.op.strips.entries()) {
+        if (Math.abs(strip.bevel) > ctx.shop.maxBevel) {
+          out.push(
+            finding(TOOL_030, 'error', {
+              nodes: [node.id],
+              message:
+                `Cut ${index + 1} needs a ${Math.abs(toDegrees(strip.bevel)).toFixed(1)}° bevel, ` +
+                `beyond the saw's ${toDegrees(ctx.shop.maxBevel).toFixed(0)}° limit.`,
+              remedy: 'Reduce the pattern angle.',
+              data: { bevel: strip.bevel, maxBevel: ctx.shop.maxBevel },
+              dedupeKey: 'bevel-range',
+            }),
+          );
+        }
+      }
+    }
+    return out;
+  },
+};
+
 const TOOL_050: Rule = {
   id: 'V-TOOL-050',
   category: 'tooling',
@@ -225,6 +298,75 @@ const TOOL_090: Rule = {
           data: { features: ['feet'] },
         }),
       );
+    }
+    return out;
+  },
+};
+
+/* -------------------------------------------------------------------------- */
+/* V-GEOM — constructibility                                                   */
+/* -------------------------------------------------------------------------- */
+
+/** Thickness of the stock a rip consumes, in ticks. */
+function ripStockThickness(ctx: ValidationContext, input: { node: string; port: number }): number {
+  const piece = ctx.evaluated.nodeOutputs.get(input.node)?.[input.port];
+  if (!piece) return 0;
+  const ys = piece.crossSection.outline.map((p) => p.y);
+  return Math.max(...ys) - Math.min(...ys);
+}
+
+const GEOM_030: Rule = {
+  id: 'V-GEOM-030',
+  category: 'geometry',
+  cites: ['KB-A06', 'KB-D02'],
+  check(ctx) {
+    const out: Finding[] = [];
+
+    for (const node of Object.values(ctx.project.graph.nodes)) {
+      if (node.op.kind !== 'rip') continue;
+      const thickness = ripStockThickness(ctx, node.op.input);
+      if (thickness <= 0) continue;
+
+      // A bevelled strip has a DIFFERENT width at each face: the boundary
+      // drifts sideways by thickness x tan(angle) as it crosses the stock.
+      // Checking only the fence setting misses a strip that tapers away inside
+      // the panel -- which is not a risky cut but a cut the saw cannot make.
+      // CBDJS checks one direction only; both are needed.
+      let leftBevel = 0;
+      for (const [index, strip] of node.op.strips.entries()) {
+        const drift = thickness * (Math.tan(toRadians(strip.bevel)) - Math.tan(toRadians(leftBevel)));
+        const atTable = strip.width;
+        const atTop = strip.width + drift;
+        leftBevel = strip.bevel;
+
+        if (Math.min(atTable, atTop) <= 0) {
+          out.push(
+            finding(GEOM_030, 'error', {
+              nodes: [node.id],
+              message:
+                `Strip ${index + 1} tapers to nothing inside the panel: ` +
+                `${formatTicks(ticks(Math.round(atTable)))} at the table face but ` +
+                `${formatTicks(ticks(Math.round(atTop)))} at the top.`,
+              remedy: 'Widen the strip, or reduce the difference between its two boundary angles.',
+              data: { stripIndex: index, atTable, atTop },
+              dedupeKey: 'taper-negative',
+            }),
+          );
+        } else if (Math.min(atTable, atTop) < ctx.shop.minSafeRipWidth) {
+          out.push(
+            finding(GEOM_030, 'error', {
+              nodes: [node.id],
+              message:
+                `Strip ${index + 1} is ${formatTicks(ticks(Math.round(Math.min(atTable, atTop))))} ` +
+                `at its narrow face, below the ${formatTicks(ctx.shop.minSafeRipWidth)} minimum. ` +
+                'A bevelled strip is narrower at one face than the fence setting suggests.',
+              remedy: 'Widen the strip, use a shallower bevel, or rip it with a jig.',
+              data: { stripIndex: index, atTable, atTop },
+              dedupeKey: 'taper-narrow',
+            }),
+          );
+        }
+      }
     }
     return out;
   },
@@ -524,9 +666,12 @@ export const RULES: readonly Rule[] = [
   SAFE_020,
   SAFE_030,
   SAFE_040,
+  TOOL_010,
+  TOOL_030,
   TOOL_050,
   TOOL_060,
   TOOL_090,
+  GEOM_030,
   GRAIN_010,
   DIM_010,
   DIM_020,

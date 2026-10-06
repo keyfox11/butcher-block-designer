@@ -47,6 +47,19 @@ export const KB: Readonly<Record<KbId, KbEntry>> = {
     sources: ['Old Line Woodcraft end-grain calculator', 'CBDJS source'],
   }),
 
+  'KB-A06': entry({
+    id: 'KB-A06',
+    title: 'Angled layer boundaries (bevel-ripped strips)',
+    confidence: 'derived',
+    text:
+      'A tilted blade shifts the cut sideways by thickness × tan(angle) as it crosses the stock, ' +
+      'so a bevelled strip is a DIFFERENT width at each face. Checking only the fence setting misses ' +
+      'a strip that tapers away inside the panel — which is not a risky cut but one the saw cannot ' +
+      'make. Both faces must be checked; checking a single direction, as CBDJS does, lets a strip ' +
+      'that opens at one face and closes at the other through.',
+    sources: ['CBDJS source: trailing-angle layer model', 'Derived geometry'],
+  }),
+
   'KB-A08': entry({
     id: 'KB-A08',
     title: 'Flattening: the hard safety gate',
@@ -220,8 +233,11 @@ export const KB: Readonly<Record<KbId, KbEntry>> = {
     confidence: 'measured',
     text:
       'A tilted blade loses vertical reach. A typical 10" saw cuts 3 1/8" at 90 degrees but only ' +
-      '2 1/4" at 45. The measured ratio (0.72) is slightly worse than the cosine model (0.707), so ' +
-      'depth is interpolated between the two published points rather than computed from cos(bevel).',
+      '2 1/4" at 45 — a ratio of 0.72, close to but not equal to the cosine model’s 0.707. ' +
+      'Depth is interpolated between the two published points rather than computed from cos(bevel), ' +
+      'because a saw’s real curve depends on its arbor and throat geometry, not on trigonometry. ' +
+      'Here cosine happens to understate reach by about 2%; on another saw it could overstate it, ' +
+      'and overstating a limit is the dangerous direction.',
     sources: ['Manufacturer specifications'],
   }),
 

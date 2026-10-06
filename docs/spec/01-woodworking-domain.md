@@ -536,13 +536,15 @@ A tilted blade loses vertical reach. The cosine model is the first approximation
 maxDepth(beta) ~= bladeMaxHeight * cos(beta)
 ```
 
-But manufacturers publish two measured points and the real curve is slightly worse than cosine.
-A typical 10" saw: 3-1/8" at 90°, 2-1/4" at 45°. The measured ratio is `2.25/3.125 = 0.72`
-against `cos 45° = 0.707`.
+But manufacturers publish two measured points, and the real curve does not follow cosine. A
+typical 10" saw: 3-1/8" at 90°, 2-1/4" at 45°. The measured ratio is `2.25/3.125 = 0.72`
+against `cos 45° = 0.707` — so on *this* saw cosine understates reach by about 2%.
 
 **Design decision:** the shop profile stores both published depths and interpolates between them,
-rather than assuming the cosine model. It is more honest, and it is the difference between
-"your saw can just make this cut" and a stalled blade mid-rip.
+rather than assuming the cosine model. The point is not that cosine errs in a predictable
+direction — here it is conservative, on another saw with different arbor and throat geometry it
+could be optimistic. The point is that a saw's reach is a measured property of that machine, and
+overstating a limit is the dangerous direction.
 
 ### KB-D02 — Table saw limits
 **[consensus]**

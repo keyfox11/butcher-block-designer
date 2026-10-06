@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { evaluate } from '../geometry/evaluate.js';
 import { checkerboard } from '../generators/checkerboard.js';
+import { chevron, zigZag } from '../generators/patterns.js';
 import { KB } from '../knowledge/kb.js';
 import { SPECIES, coefficientLooksConsistent } from '../knowledge/species.js';
 import { DEFAULT_SHOP } from '../model/defaults.js';
 import { createProject } from '../model/project.js';
 import type { Project, ShopProfile } from '../model/types.js';
-import { inches } from '../units/ticks.js';
-import { RULES } from './rules.js';
+import { degrees, inches, toInches } from '../units/ticks.js';
+import { RULES, maxCutDepth } from './rules.js';
 import { validate } from './validate.js';
 
 function build(
@@ -307,5 +308,97 @@ describe('finding presentation', () => {
     expect(narrow).toHaveLength(1);
     expect(narrow[0]!.message).toMatch(/strips at/);
     expect(narrow[0]!.data['occurrences']).toBeGreaterThan(1);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* P1 — bevel rules                                                            */
+/* -------------------------------------------------------------------------- */
+
+describe('V-GEOM-030 both-faces taper', () => {
+  function angled(angleDeg: number, stripWidth = inches(1.5), shop = DEFAULT_SHOP) {
+    const { graph } = zigZag(['hard-maple', 'black-walnut'], stripWidth, 6, degrees(angleDeg), shop);
+    const evaluated = evaluate(graph, shop);
+    const project = createProject({
+      name: 't', graph, speciesPalette: ['hard-maple', 'black-walnut'], shopProfile: shop,
+    });
+    return validate({ project, evaluated, shop });
+  }
+
+  it('passes a gentle bevel on a wide strip', () => {
+    expect(angled(10).findings.find((f) => f.ruleId === 'V-GEOM-030')).toBeUndefined();
+  });
+
+  it('catches a strip that is safe at the fence but too narrow at its other face', () => {
+    // A bevelled strip's two faces differ by thickness x tan(angle). Checking
+    // only the fence setting misses this; CBDJS checks one direction only.
+    const result = angled(15, inches(0.75));
+    const f = result.findings.find((x) => x.ruleId === 'V-GEOM-030');
+    expect(f?.severity).toBe('error');
+    expect(f?.message).toMatch(/narrow face/);
+  });
+});
+
+describe('V-TOOL-010 cut depth at a bevel', () => {
+  it('interpolates between measured points rather than using cosine', () => {
+    // A 10" saw measures 3 1/8" at 90 and 2 1/4" at 45 — a ratio of 0.72,
+    // where cosine predicts 0.707. The model is not wrong in a predictable
+    // direction; a saw's reach depends on its arbor and throat geometry, so
+    // the measured points are used instead of trigonometry.
+    const atZero = maxCutDepth(DEFAULT_SHOP, 0);
+    const at45 = maxCutDepth(DEFAULT_SHOP, degrees(45));
+    expect(toInches(atZero)).toBeCloseTo(3.125, 6);
+    expect(toInches(at45)).toBeCloseTo(2.25, 6);
+    expect(at45 / atZero).toBeCloseTo(0.72, 2);
+    expect(at45 / atZero).not.toBeCloseTo(Math.cos(Math.PI / 4), 3);
+  });
+
+  it('blocks a cut deeper than the saw can reach', () => {
+    const shop = { ...DEFAULT_SHOP, bladeDepthAt90: inches(1), bladeDepthAt45: inches(0.7) };
+    const { graph } = zigZag(['hard-maple', 'black-walnut'], inches(1.5), 6, degrees(20), shop);
+    const evaluated = evaluate(graph, shop);
+    const project = createProject({
+      name: 't', graph, speciesPalette: ['hard-maple', 'black-walnut'], shopProfile: shop,
+    });
+    const result = validate({ project, evaluated, shop });
+    expect(result.findings.find((f) => f.ruleId === 'V-TOOL-010')?.severity).toBe('error');
+  });
+});
+
+describe('V-TOOL-030 bevel range', () => {
+  it('blocks a bevel beyond the saw limit', () => {
+    const shop = { ...DEFAULT_SHOP, maxBevel: degrees(20) };
+    const { graph } = zigZag(['hard-maple', 'black-walnut'], inches(1.5), 6, degrees(35), shop);
+    const evaluated = evaluate(graph, shop);
+    const project = createProject({
+      name: 't', graph, speciesPalette: ['hard-maple', 'black-walnut'], shopProfile: shop,
+    });
+    const result = validate({ project, evaluated, shop });
+    expect(result.findings.find((f) => f.ruleId === 'V-TOOL-030')?.severity).toBe('error');
+  });
+
+  it('allows a bevel at exactly the limit', () => {
+    const shop = { ...DEFAULT_SHOP, maxBevel: degrees(20) };
+    const { graph } = zigZag(['hard-maple', 'black-walnut'], inches(1.5), 6, degrees(20), shop);
+    const evaluated = evaluate(graph, shop);
+    const project = createProject({
+      name: 't', graph, speciesPalette: ['hard-maple', 'black-walnut'], shopProfile: shop,
+    });
+    const result = validate({ project, evaluated, shop });
+    expect(result.findings.find((f) => f.ruleId === 'V-TOOL-030')).toBeUndefined();
+  });
+});
+
+describe('angled patterns validate clean at sensible angles', () => {
+  it.each([
+    ['zigZag', () => zigZag(['hard-maple', 'black-walnut'], inches(1.5), 8, degrees(15), DEFAULT_SHOP)],
+    ['chevron', () => chevron(['hard-maple', 'black-walnut'], inches(1.5), 8, degrees(15), DEFAULT_SHOP)],
+  ])('%s raises no errors', (_name, make) => {
+    const { graph } = make();
+    const evaluated = evaluate(graph, DEFAULT_SHOP);
+    const project = createProject({
+      name: 't', graph, speciesPalette: ['hard-maple', 'black-walnut'], shopProfile: DEFAULT_SHOP,
+    });
+    expect(validate({ project, evaluated, shop: DEFAULT_SHOP }).counts.error).toBe(0);
   });
 });
