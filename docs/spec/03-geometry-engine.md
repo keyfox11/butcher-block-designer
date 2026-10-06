@@ -37,26 +37,35 @@ optimisation rather than a necessity.
 type Polygon = { ring: Array<{ x: number; y: number }>; holes?: Array<...> };
 ```
 
-### Recommended library: Clipper2
+### Clipping: implemented directly, no boolean library
 
-**Use [Clipper2](https://github.com/AngusJohnson/Clipper2) (`clipper2-js`) for all polygon
-booleans and offsetting, operating directly on integer tick coordinates.**
+> **Revised during P0/P1 implementation.** This section originally specified
+> [Clipper2](https://github.com/AngusJohnson/Clipper2) (`clipper2-js`). It was not needed, and
+> the reason is worth recording so it is not reintroduced by reflex.
 
-The reasoning matters, because the obvious alternative is wrong for this project:
+**Implemented: Sutherland–Hodgman half-plane clipping on integer tick coordinates, ~60 lines in
+`core/geometry/polygon.ts`. No polygon-boolean dependency.**
 
-| | Clipper2 | `polygon-clipping` / Martinez |
-| --- | --- | --- |
-| Coordinate type | **64-bit integers** | float64 |
-| Fits our `Ticks` model | **Exactly** | Requires conversion both ways |
-| Robustness | Battle-tested in 3-D printing slicers | Good, but float-epsilon sensitive |
-| Polygon offsetting | **Built in** | Not included |
+The operation vocabulary never needs a general boolean:
 
-Integer coordinates are not a minor convenience. A float-based boolean library will produce
-slivers of width `1e-13` at coincident edges, and those slivers then have to be detected and
-merged with an epsilon heuristic that is itself a bug farm. On integers, coincident edges are
-*actually* coincident and the degenerate case disappears.
+- A saw makes **straight, full-depth cuts**, which are half-plane clips.
+- Lamination places pieces **side by side without overlap**, which is concatenation plus a
+  tiling check — not a union.
 
-The built-in offsetting also turns out to be exactly what the kerf model needs.
+Integer coordinates still matter for exactly the reason originally given: on integers, coincident
+edges are *actually* coincident, so the sliver-at-a-shared-edge problem never arises and no
+epsilon heuristic is needed. That benefit comes from the `Ticks` model, not from the library.
+
+**Exactness depends on where the cut line is anchored**, which was the non-obvious part. Every
+workpiece in this model has flat top and bottom faces, so those are precisely where a cut crosses
+the boundary. Anchoring the line — and rounding it — *at those crossings* makes a bevelled cut of
+flat-faced stock **exact**. Anchoring it further out (the obvious "extend the line past the
+polygon" approach) means each crossing is interpolated and re-rounded, and the sub-tick residue
+accumulates across every face of every slice.
+
+A general boolean library would be a large dependency doing less verifiably what these 60
+property-tested lines do exactly. If P2's honeycomb needs true unions of non-adjacent regions,
+revisit — but note that butted lamination handled every angled pattern in P1 without one.
 
 ## Cuts as polygon subtraction
 
@@ -64,7 +73,7 @@ A saw cut is not a zero-width line — it removes a slab of material one kerf wi
 that way makes kerf accounting automatic instead of bookkeeping:
 
 ```
-cutSlab   = offset(cutLine, kerf / 2)        // Clipper2 offsetting
+cutSlab   = the band between the two blade edges   // see sawCutEdges()
 pieceA    = crossSection ∩ halfPlaneLeft(cutLine)  −  cutSlab
 pieceB    = crossSection ∩ halfPlaneRight(cutLine) −  cutSlab
 kerfVolume = area(crossSection ∩ cutSlab) × length
@@ -266,7 +275,7 @@ dragged.
 
 - Memoised evaluation, dirty-subtree only.
 - Boolean operations are the hot path. Typical designs are tens of polygons of a few vertices
-  each, well within Clipper2's range; cache cut slabs across re-evaluations when only a
+  each, well within the clipper's range; cache cut slabs across re-evaluations when only a
   downstream parameter changed.
 - 3-D geometry rebuilt only when the partition actually changes, not on camera movement.
 - If profiling shows the 2-D canvas struggling at high piece counts, the fallback is Canvas2D or

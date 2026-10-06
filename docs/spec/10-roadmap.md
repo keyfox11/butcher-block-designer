@@ -17,7 +17,7 @@ right cut list.
 
 - `core/units` — `Ticks`, `MilliDeg`, fraction parse/format
 - `core/model` — `Project`, `Graph`, `Op`, `Workpiece`, `Partition`; invariant checks
-- `core/geometry` — `evaluate()`, cuts as polygon subtraction over clipper2
+- `core/geometry` — `evaluate()`, cuts as polygon subtraction
 - `core/knowledge` — species table and the KB entries P0 rules need
 - `core/validation` — the `V-SAFE-*`, `V-DIM-*`, and `V-MAT-*` rules
 - `core/cutlist` — allowance ledger, cut list, instruction generation

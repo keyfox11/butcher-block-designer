@@ -3,8 +3,13 @@
 A design spec for an end-grain cutting board / butcher block pattern designer that gives you
 full creative freedom **without** sacrificing a cut list you can actually trust at the saw.
 
-> **Status: design spec only.** No application code exists yet. This repository currently
-> contains the specification that a future implementation will be built against.
+> **Status: P0 and P1 complete.** 10 patterns, 22 validation rules, cut list with allowance
+> ledger, build instructions, assembly maps, 2-D and 3-D previews, and shareable designs.
+> 238 tests; CI green. P2 (multi-stage: 3D cube, true herringbone) is next.
+>
+> **Picking this up cold? Read [`docs/HANDOFF.md`](docs/HANDOFF.md) first.** It covers where the
+> code deviates from the spec and why, which invariant catches which class of bug, and the traps
+> that cost time.
 
 ## Why another cutting board designer?
 
@@ -44,6 +49,7 @@ feature-by-feature comparison.
 | [`09-exports.md`](docs/spec/09-exports.md) | Printable output, project files, shareable URLs |
 | [`10-roadmap.md`](docs/spec/10-roadmap.md) | Phased build plan, P0 through P4 |
 | [`references.md`](docs/spec/references.md) | Every source, and what each one established |
+| [`../HANDOFF.md`](docs/HANDOFF.md) | **Start here when resuming.** Status, spec deviations, invariants, traps, P2 plan |
 
 If you only read two documents, read `01` and `02`. The domain knowledge in `01` is what makes
 the output trustworthy; the model in `02` is what makes it expressive.

@@ -5,13 +5,13 @@
 | Concern | Choice | Why |
 | --- | --- | --- |
 | Build | **Vite** | Fast HMR; the geometry core benefits from tight iteration |
-| Framework | **React 18 + TypeScript (strict)** | Branded unit types ([`02`](02-construction-graph.md)) need a real type checker |
+| Framework | **React 19 + TypeScript (strict)** | Branded unit types ([`02`](02-construction-graph.md)) need a real type checker. *Revised from 18: `@react-three/fiber@9` requires 19, and pinning a 3-D library backwards to keep a React version with no reason to stay on it is the wrong trade.* |
 | State | **Zustand + immer** | Normalised graph store; immer inverse patches give undo/redo for free |
 | 3-D | **three + @react-three/fiber + @react-three/drei** | Declarative Three.js that composes with React state |
 | 2-D | **SVG** (React-rendered) | Crisp at any zoom, free hit-testing, directly reusable for print and export |
-| Polygons | **clipper2-js** | **Integer** coordinates matching our `Ticks` model; offsetting built in ([`03`](03-geometry-engine.md#recommended-library-clipper2)) |
+| Polygons | **none — implemented directly** | Half-plane clipping on integer ticks, ~60 lines. *Revised from clipper2-js: the vocabulary only needs half-plane clips and non-overlapping placement* ([`03`](03-geometry-engine.md#clipping-implemented-directly-no-boolean-library)) |
 | Print / PDF | **Paged HTML + print stylesheet** | Browser prints to PDF. No PDF library, no font embedding, no layout engine to fight |
-| URL codec | **CBOR + deflate + base64url** | Compact and versionable, unlike CBDJS's naive unversioned scheme |
+| URL codec | **JSON + deflate (fflate) + base64url** | Versioned, unlike CBDJS's scheme. *Revised from CBOR: the generator fast path makes payloads ~200 chars, so a CBOR dependency bought nothing* |
 | Tests | **Vitest + fast-check** | Property-based testing is the backbone of the correctness story |
 
 Deliberately **not** included:
@@ -71,7 +71,7 @@ src/
   core/                 ← ZERO React imports. Zero DOM. Pure and independently testable.
     units/              Ticks, MilliDeg; parse/format fractions and metric
     model/              Project, Graph, Op, Workpiece, Partition; invariant checks
-    geometry/           evaluate(); polygon ops over clipper2; partition algebra
+    geometry/           evaluate(); integer polygon ops; partition algebra
     knowledge/          THE KB AS DATA: species table, rule text, instruction templates
     validation/         rules/*.ts, validate()
     cutlist/            allowance ledger, cut list, instruction generation, assembly maps
