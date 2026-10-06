@@ -256,7 +256,20 @@ export interface CutResult {
  * which removes the classic failure in this domain -- kerf counted once per
  * strip instead of once per cut, or double-counted at a panel end.
  */
-export function applyCut(poly: Polygon, cut: SawCut): CutResult {
+/**
+ * The two blade edges of a cut, as oriented lines.
+ *
+ * Exposed so that a partition's outline and each of its faces are clipped by
+ * the *same* lines. Deriving them twice would risk the outline and the faces
+ * disagreeing by a tick, which is exactly the gap-or-overlap bug the partition
+ * invariant exists to catch.
+ */
+export interface CutEdges {
+  readonly near: { a: Point; b: Point };
+  readonly far: { a: Point; b: Point };
+}
+
+export function sawCutEdges(extent: BoundingBox, cut: SawCut): CutEdges {
   if (cut.kerf < 0) throw new GeometryError(`Kerf must be non-negative, got ${cut.kerf}`);
 
   const tilt = Math.tan(toRadians(cut.bevel));
@@ -264,27 +277,34 @@ export function applyCut(poly: Polygon, cut: SawCut): CutResult {
   // distance k / cos(bevel).
   const horizontalKerf = cut.kerf / Math.cos(toRadians(cut.bevel));
 
-  const span = Math.max(height(poly), 1);
-  const top = boundingBox(poly).maxY + span;
-  const bottom = boundingBox(poly).minY - span;
+  const span = Math.max(extent.maxY - extent.minY, 1);
+  const top = extent.maxY + span;
+  const bottom = extent.minY - span;
 
-  const edge = (offset: number): HalfPlane['a'][] => [
-    point(Math.round(cut.atBase + offset + bottom * tilt), bottom),
-    point(Math.round(cut.atBase + offset + top * tilt), top),
-  ];
+  const edge = (offset: number) => ({
+    a: point(Math.round(cut.atBase + offset + bottom * tilt), bottom),
+    b: point(Math.round(cut.atBase + offset + top * tilt), top),
+  });
 
-  const [nearA, nearB] = edge(0) as [Point, Point];
-  const [farA, farB] = edge(horizontalKerf) as [Point, Point];
+  return { near: edge(0), far: edge(horizontalKerf) };
+}
 
-  // The directed line runs bottom -> top, so its left side is -x (fence side).
-  const keep = clipHalfPlane(poly, { a: nearA, b: nearB, keep: 'left' });
-  const offcut = clipHalfPlane(poly, { a: farA, b: farB, keep: 'right' });
-  const kerf = clipHalfPlane(
-    clipHalfPlane(poly, { a: nearA, b: nearB, keep: 'right' }),
-    { a: farA, b: farB, keep: 'left' },
-  );
+export function applyCut(poly: Polygon, cut: SawCut): CutResult {
+  const edges = sawCutEdges(boundingBox(poly), cut);
+  return applyCutEdges(poly, edges);
+}
 
-  return { keep, offcut, kerf };
+/** Split a polygon with pre-computed cut edges. */
+export function applyCutEdges(poly: Polygon, edges: CutEdges): CutResult {
+  // The directed lines run bottom -> top, so their left side is -x (fence side).
+  return {
+    keep: clipHalfPlane(poly, { ...edges.near, keep: 'left' }),
+    offcut: clipHalfPlane(poly, { ...edges.far, keep: 'right' }),
+    kerf: clipHalfPlane(clipHalfPlane(poly, { ...edges.near, keep: 'right' }), {
+      ...edges.far,
+      keep: 'left',
+    }),
+  };
 }
 
 /**

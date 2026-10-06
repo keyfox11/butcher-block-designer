@@ -6,9 +6,4 @@ export default defineConfig({
   // fragment, so no server rewrite rules are needed.
   base: '/butcher-block-designer/',
   plugins: [react()],
-  test: {
-    globals: true,
-    environment: 'node',
-    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
-  },
 });
