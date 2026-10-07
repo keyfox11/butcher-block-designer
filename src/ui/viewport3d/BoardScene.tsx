@@ -29,7 +29,14 @@ export function BoardScene({ workpiece, edgeTreatments, showScaleReference = tru
   const dims = boardDimensions(workpiece);
   const widthIn = toScene(dims.width);
   const lengthIn = toScene(dims.length);
-  const span = Math.max(widthIn, lengthIn);
+  // The knife has to be inside `span`, not just inside the scene. `span` sets
+  // the camera distance AND the OrbitControls clamp, so a board smaller than
+  // the knife used to cap maxDistance below the distance needed to frame it:
+  // at a 2 7/8" board the limit was 11.5 units against the ~21 required, and
+  // the viewport rendered black. A scale reference that blanks the view for
+  // small boards is worse than none, and small boards are exactly where a
+  // scale reference earns its keep.
+  const span = Math.max(widthIn, lengthIn, showScaleReference ? SCALE_REFERENCE.overallIn : 0);
 
   return (
     <div className="viewport3d">
@@ -234,14 +241,25 @@ function canvasTexture(
  * reason the knife is here rather than a dimension line.
  */
 const BLADE_LENGTH_IN = 8;
-const BLADE_HEEL_IN = 1.8;
-const BLADE_THICK_IN = 0.07;
+const BLADE_HEEL_IN = 1.85;
+const BLADE_THICK_IN = 0.08;
 const HANDLE_LENGTH_IN = 4.75;
-const HANDLE_WIDTH_IN = 1.02;
-const HANDLE_THICK_IN = 0.6;
+const HANDLE_WIDTH_IN = 1.1;
+const HANDLE_THICK_IN = 0.8;
+/**
+ * The handle rides up at the spine, not on the blade's centreline.
+ *
+ * Easy to miss because the knife lies flat, so this is a view down onto the
+ * blade's face: the spine runs roughly into the top of the handle and the heel
+ * hangs well below it. Centring the handle is most of what made the first
+ * attempt read as a spatula.
+ */
+const HANDLE_OFFSET_IN = 0.3;
 
 export const SCALE_REFERENCE = {
   bladeLengthIn: BLADE_LENGTH_IN,
+  /** Heel to butt. What the camera has to be able to frame. */
+  overallIn: BLADE_LENGTH_IN + HANDLE_LENGTH_IN,
   label: `${BLADE_LENGTH_IN}" chef's knife, actual size`,
 } as const;
 
@@ -256,12 +274,29 @@ export const SCALE_REFERENCE = {
 function bladeShape(): THREE.Shape {
   const L = BLADE_LENGTH_IN;
   const h = BLADE_HEEL_IN / 2;
+  // The point sits below the spine's line, about two thirds of the way up from
+  // the edge. Putting it level with the spine gives a sheep's foot instead.
+  const tipX = h * 0.36;
+
   const s = new THREE.Shape();
-  s.moveTo(-h, 0.1); // heel, cutting edge
-  s.bezierCurveTo(-h, L * 0.5, -h * 0.95, L * 0.78, -h * 0.34, L * 0.95); // the belly
-  s.quadraticCurveTo(-h * 0.04, L, h * 0.26, L * 0.975); // the point
-  s.bezierCurveTo(h * 0.78, L * 0.9, h, L * 0.72, h, L * 0.44); // spine falling to the tip
-  s.lineTo(h, 0); // spine, straight back to the bolster
+  s.moveTo(-h, 0); // the heel: the blade is deepest here, hard against the bolster
+
+  // The edge, heel to point in one curve. The first control sits directly
+  // above the heel so the edge leaves straight; the second pulls the belly up
+  // through the last third.
+  s.bezierCurveTo(-h, L * 0.42, -h * 0.45, L * 0.8, tipX, L);
+
+  // The spine falling back from the point. Both curves END on the tip, so they
+  // meet at a vertex -- the first attempt joined them through an arc spanning
+  // 30% of the blade's height, which is why it came out round-ended like a
+  // butter knife. The controls either side of the tip are placed to put the
+  // included angle at ~50 deg, which is where a forged German chef's knife
+  // sits; the first attempt measured 59 deg and still read as a wedge. The
+  // last two controls share the spine's x, so the fall rejoins the straight
+  // run tangentially instead of kinking.
+  s.bezierCurveTo(h * 0.58, L * 0.945, h, L * 0.7, h, L * 0.52);
+
+  s.lineTo(h, 0); // straight spine, down to the bolster
   s.closePath();
   return s;
 }
@@ -340,19 +375,19 @@ function ScaleReference({ lengthIn }: { lengthIn: number }) {
 
       {/* The bolster: the thick collar where blade meets handle. Small, but it
           is most of why a knife reads as a knife rather than a letter opener. */}
-      <mesh position={[0, HANDLE_THICK_IN / 2, -0.2]} castShadow>
+      <mesh position={[HANDLE_OFFSET_IN, HANDLE_THICK_IN / 2, -0.2]} castShadow>
         <boxGeometry args={[HANDLE_WIDTH_IN * 0.92, HANDLE_THICK_IN * 1.02, 0.42]} />
         <meshStandardMaterial color="#b9c0c9" metalness={0.9} roughness={0.28} />
       </mesh>
 
-      <mesh geometry={handle} position={[0, 0, -0.34]} castShadow receiveShadow>
+      <mesh geometry={handle} position={[HANDLE_OFFSET_IN, 0, -0.34]} castShadow receiveShadow>
         <meshStandardMaterial color="#1b1a1e" metalness={0.05} roughness={0.55} />
       </mesh>
 
       {/* Three rivets. Pure signal: they cost six triangles each and they are
           the detail that says "chef's knife" from across the viewport. */}
       {[-1.25, -2.4, -3.55].map((z) => (
-        <mesh key={z} position={[0, HANDLE_THICK_IN - 0.03, z]} castShadow>
+        <mesh key={z} position={[HANDLE_OFFSET_IN, HANDLE_THICK_IN - 0.03, z]} castShadow>
           <cylinderGeometry args={[0.085, 0.085, 0.07, 14]} />
           <meshStandardMaterial color="#aab1ba" metalness={0.92} roughness={0.3} />
         </mesh>

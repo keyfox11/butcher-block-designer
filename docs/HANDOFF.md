@@ -133,6 +133,13 @@ CSS rules, and no amount of staring at the component would have found it.
 
 **The transferable part:** any status text whose content varies needs a box whose size does not.
 
+A third defect fell out of fixing the second. Sizing the camera from the board alone
+(`span = max(widthIn, lengthIn)`) also set the `OrbitControls` clamp, so a board smaller than the
+12¾" knife capped `maxDistance` below the distance needed to frame it — 11.5 units against ~21 at
+a 2⅞" board — and the 3-D viewport rendered **black**. Found only because shrinking the board was
+how I got a good look at the knife. A scale reference that blanks the view for small boards is
+worse than no scale reference, and small boards are exactly where one earns its keep.
+
 ### Citation integrity — catches knowledge drifting out of the knowledge base
 
 Every validation rule must cite a KB entry that exists. Caught `V-GEOM-030` citing `KB-A06`,
