@@ -211,9 +211,15 @@ belong in an error report that says so.
   the address bar, so the fallback message is accurate and cheap.
 - **Findings should link to controls**, not only to pieces. A finding naming a parameter should
   focus the control that sets it.
-- **Hover must not move anything.** Fixed, and recorded here as the class: the 2-D caption was
-  sizing its own flex container, so the board changed scale by up to 24% as the cursor crossed
-  pieces. Any status text whose content varies needs a box whose size does not.
+- **Hover must not move anything.** Fixed, then **regressed by the P3 commit and still open**: the
+  2-D caption was sizing its own flex container, so the board changed scale by up to 24% as the
+  cursor crossed pieces. Any status text whose content varies needs a box whose size does not.
+
+  The regression is worth keeping on this list rather than treating as a stray bug, because it
+  shows the item is about a *class* and not an incident. The original fix rested on a child
+  combinator — `.viewport > .canvas-wrap` — so wrapping the canvas one level deeper silently
+  undid it, and the board now swings 6% on hover again. A repair that nothing can assert is a
+  repair that comes back; whatever fixes it this time should not depend on the nesting.
 
 **Exit criterion.** No sequence of control movements can reach a state that discards the user's
 design. Every control that can be driven out of range says so on itself, in place, and can be

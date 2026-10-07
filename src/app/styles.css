@@ -65,6 +65,12 @@ button.active { background: var(--accent); border-color: var(--accent); color: #
    then followed it. Hovering a piece swaps the caption for a species-and-piece
    label of a different length, so the board visibly changed scale as the cursor
    moved. A definite width breaks that feedback loop. */
+/* LOAD-BEARING, and currently bypassed — see the regression row in docs/HANDOFF.md §8.
+   `flex: 1; min-width: 0` is what gives the wrap a definite width; without it the wrap is
+   shrink-to-fit and takes its width from the caption, so the board rescales on hover. The
+   `align-self: stretch` on `.canvas-caption` below is NOT the fix, despite reading like it.
+   P3 wrapped the canvases in `.paint-pane`, so this `>` no longer matches in the Patterns
+   tier. Do not re-nest the canvas without carrying this rule across. */
 .viewport > .canvas-wrap { align-self: center; flex: 1; min-width: 0; }
 
 @media (max-width: 1000px) {
@@ -112,9 +118,15 @@ label.radio { display: flex; align-items: center; gap: 8px; padding: 3px 0; curs
 .face-outline.hot { stroke: var(--accent); stroke-width: 260; }
 .canvas-caption {
   font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums;
-  /* Stretch rather than hug, so the caption can never drive the wrap's width
-     again, and so a long hover label truncates instead of wrapping to a second
-     line and shifting the board down. */
+  /* This handles the VERTICAL half only: a long hover label truncates instead
+     of wrapping to a second line and shifting the board down.
+
+     It does NOT stop the caption driving the wrap's width, which an earlier
+     version of this comment claimed. Stretching fills the wrap once its width
+     is known, but the caption's text still counts toward the wrap's max-content
+     size, so a shrink-to-fit wrap is sized by it regardless. The width half is
+     held by `.viewport > .canvas-wrap` above — and only while the canvas stays
+     a direct child of `.viewport`. */
   align-self: stretch; text-align: center;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }

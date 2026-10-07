@@ -141,6 +141,19 @@ CSS rules, and no amount of staring at the component would have found it.
 
 **The transferable part:** any status text whose content varies needs a box whose size does not.
 
+> ⚠️ **And it came back in P3 (`13ae096`). Still open** — see the regression row in
+> [§8](#8-open-items). The fix was two rules, and only one of them was doing the real work:
+> `.viewport > .canvas-wrap { flex: 1; min-width: 0 }` is what gave the wrap a definite width, while
+> the `align-self: stretch` on the caption — the rule that *looks* like the fix, and carries the
+> explanatory comment — only stops a long label wrapping to a second line. P3 wrapped both canvases
+> in a `.paint-pane` div, the child combinator stopped matching, and the wrap went back to
+> shrink-to-fit.
+>
+> **The second transferable part, which is the sharper one:** a layout fix written as a child
+> combinator is coupled to the DOM shape, and nothing fails when that shape changes — no test, no
+> type, no lint. If a CSS rule is load-bearing, say so in a comment *at the selector*, not at the
+> declaration that reads like the fix.
+
 A third defect fell out of fixing the second. Sizing the camera from the board alone
 (`span = max(widthIn, lengthIn)`) also set the `OrbitControls` clamp, so a board smaller than the
 12¾" knife capped `maxDistance` below the distance needed to frame it — 11.5 units against ~21 at
@@ -507,6 +520,8 @@ the rule gaps in [§7](#7-the-validator-gap).
 
 | Item | Notes |
 | --- | --- |
+| ⚠️ **Hover resizes the 2-D board again — regression, reintroduced by `13ae096`** | The defect fixed on 2026-10-07 is back. **Measured on the deployed build:** in the Patterns tier's Face view the board swings **233.5px → 247.4px (6%)** as the cursor crosses pieces, and the SVG's width tracks the caption's to the pixel in every sample. Cause: the real fix was `.viewport > .canvas-wrap { flex: 1; min-width: 0 }`, and P3 wrapped both canvases in a `.paint-pane` div, so that child combinator no longer matches and the wrap is shrink-to-fit again. The paint tier is unaffected — its panes are grid items of `.viewport-split` and get a definite width regardless. **Likely fix:** give `.paint-pane > .canvas-wrap` the same flex basis, or drop the `>` so the rule is not coupled to the nesting. Deliberately left unfixed; see the warning in [§3](#reading-the-output--still-the-broadest-net-and-now-the-only-one-that-caught-a-ui-bug) for why it slipped through. |
+| **`App.tsx` has a no-op ternary and a misleading class name** | Noticed while diagnosing the above, both cosmetic and both in the viewport block: `{tier === 'paint' ? achieved : achieved}` picks between two identical branches, and `.paint-pane` now wraps the achieved canvas in *both* tiers, so the name is wrong outside the paint tier. Worth cleaning up with the regression, since it is the same few lines. |
 | **Nothing has been built in wood** | The arithmetic is verified against published results and the geometry is checked by construction, but no board from this tool has been made. That is the real test, and it will find things no invariant can. |
 | **Grid-first vs finished-first** | Found by capturing G4, and the one question it left open. Old Line *adds* its squaring allowance to the slab, so you get the board you asked for. Our grid patterns *subtract* `2 × trimPerEdge` from the nominal grid, so a 16 × 24 grid of ¾" cells finishes at 11⅞" × 17⅞" rather than 12" × 18". Both reserve the same ⅛"; only which number the user states is different. Grid-first is consistent across every grid generator and dodges Old Line's silent `ceil` overshoot — but it does mean the app cannot be asked for a 12" board directly. A deliberate convention, not a defect; worth revisiting if the finished size turns out to be what people actually type. |
 | **5.5 MB in git history** | `test-print.pdf` was committed in `b2c3ec0` and removed later, so every clone still pays for it. Its metadata carries the author name, which the commit metadata shows anyway. Dropping it needs a history rewrite and force-push — safe with one author, but it was judged not worth doing once the repo went public. |
