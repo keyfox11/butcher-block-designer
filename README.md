@@ -11,7 +11,7 @@ believes is unbuildable, and it tells you why.
 > **Live: <https://keyfox11.github.io/butcher-block-designer/>** — nothing to install.
 >
 > **Status: working tool, P3 complete.** 14 patterns plus a free-paint surface, 30 validation
-> rules, 524 tests, CI green. See [`docs/HANDOFF.md`](docs/HANDOFF.md) for what is next.
+> rules, 531 tests, CI green. See [`docs/HANDOFF.md`](docs/HANDOFF.md) for what is next.
 >
 > **Picking this up cold? Read [`docs/HANDOFF.md`](docs/HANDOFF.md) first.** It covers which
 > invariant catches which class of bug, where the code deviates from the spec and why, and the
@@ -217,7 +217,7 @@ is unrepresentable rather than merely rejected.
 the operation at fault. The faces of every cross-section must tile their outline. A non-grid
 lay-up's gaps are found *topologically* — a missing cell is an enclosed ring, located exactly,
 rather than a number that has to beat a tolerance. Property-based tests over randomly generated
-graphs; 524 tests in total.
+graphs; 531 tests in total.
 
 The paint surface has an invariant of its own, and it catches what conservation cannot. Over
 randomly painted targets the tool must land in exactly two states: a refusal that names what is
@@ -276,7 +276,7 @@ output trustworthy; the model in `02` is what makes it expressive.
 **[MIT](LICENSE).** Use it, fork it, sell it — keep the notice.
 
 Deployed to GitHub Pages at <https://keyfox11.github.io/butcher-block-designer/>, published by CI
-only after the spec checker, typecheck, lint, `core/` boundary and all 524 tests pass. A build that
+only after the spec checker, typecheck, lint, `core/` boundary and all 531 tests pass. A build that
 fails its own validator does not replace the site.
 
 **Nothing here has been built in wood yet.** The arithmetic is verified against two independent

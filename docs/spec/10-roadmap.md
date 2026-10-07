@@ -248,6 +248,13 @@ picture/cut-list divergence this design exists to eliminate.
    than a conservative guess. Currently a shop-profile parameter with a cautious default.
 2. **Guillotine search ordering.** Minimising tree depth minimises glue-ups, but the best search
    heuristic needs empirical tuning against real painted targets.
+
+   *Partly answered at P3, in two places that turned out to be different questions.* The **search**
+   orders by stages, then by a preference for a `y` root, then glue-ups — and the axis term has to
+   outrank the glue-up count, because it stands in for panel sharing, which the search cannot see.
+   The **snapper** orders by fewest pieces crossed, because a crossed piece is a new glue line and
+   that line is the only visible change a suggestion makes to someone's drawing. Both are greedy
+   and neither claims minimality; the empirical tuning is still owed.
 3. **Species data provenance.** Sugar maple appears as both 4.8/9.9 and 4.9/9.5 across sources.
    The spread is small, but the table carries a `provenance` field per row and the conflict
    should be recorded rather than averaged away

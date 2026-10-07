@@ -67,11 +67,41 @@ export interface SplitCandidate {
 /**
  * Which line to split on, when more than one would unblock the region.
  *
- * TODO(human): return the candidate to split.
+ * **Fewest pieces crossed wins**, and the reason is the same one the whole
+ * module rests on. Every crossed piece becomes two, with a glue line between
+ * them, and that glue line is the *only* visible change the snapper makes to
+ * someone's drawing — the species on both sides is unchanged. So minimising
+ * pieces crossed is minimising how much the suggestion alters the design, which
+ * is the thing a user is being asked to accept.
+ *
+ * It also happens to minimise work: a glue line is a joint to true up, and the
+ * piece count is what the panel's rip list grows by.
+ *
+ * Then centrality, because tree depth is cure cycles and a balanced split keeps
+ * the tree shallow. Then total area crossed, which prefers interrupting small
+ * pieces over large ones — a user who merged a big region chose that region's
+ * visual weight deliberately, and a glue line across the middle of it reads as
+ * more of an intrusion than one across a cell.
+ *
+ * **This is greedy per iteration, not globally optimal**, and that is worth
+ * being clear about rather than implying otherwise. A line crossing one piece
+ * may leave the region still blocked while a line crossing two would have
+ * cleared it, so the repair loop can end up adding more glue lines in total
+ * than a lookahead search would. The loop terminates either way (see the
+ * termination note at the top of this file), and tuning this against real
+ * painted targets is roadmap open question 2.
  */
 export function chooseSplit(candidates: readonly SplitCandidate[]): SplitCandidate {
-  // TODO(human)
-  throw new Error(`chooseSplit is not implemented (${candidates.length} candidates offered)`);
+  const first = candidates[0];
+  if (!first) throw new Error('chooseSplit needs at least one candidate');
+
+  return candidates.reduce((best, c) => {
+    if (c.crosses.length !== best.crosses.length) {
+      return c.crosses.length < best.crosses.length ? c : best;
+    }
+    if (c.offCentre !== best.offCentre) return c.offCentre < best.offCentre ? c : best;
+    return c.totalCrossed < best.totalCrossed ? c : best;
+  }, first);
 }
 
 /** Repairs attempted before giving up. See the termination note above. */

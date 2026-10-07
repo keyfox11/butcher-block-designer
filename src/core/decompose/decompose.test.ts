@@ -22,7 +22,14 @@ import { decompose, decomposeTarget } from './decompose.js';
 import { sliceSignature } from './emit.js';
 import { isTwoStage, searchGuillotine, treeLeaves, treeStages, type Placed } from './guillotine.js';
 import { hexToOklab, quantiseImage, quantiseQuality } from './quantise.js';
-import { candidatesWithin } from './snap.js';
+import {
+  candidatesWithin,
+  chooseSplit,
+  suggestBuildable,
+  suggestionDiff,
+  suggestionIsSound,
+  type SplitCandidate,
+} from './snap.js';
 import {
   checkerTarget,
   mergeRect,
@@ -45,13 +52,30 @@ const OPTIONS = { boardThickness: inches(1.5) } as const;
 /* Helpers                                                                     */
 /* -------------------------------------------------------------------------- */
 
-/** Species of the face covering a point, by rectangle containment. */
+/**
+ * Species of the face covering a point, by rectangle containment.
+ *
+ * The boundary case is not a technicality here. A snap splits a piece along a
+ * grid line, so the achieved board grows a joint exactly where the target has
+ * solid wood — and a sample taken at a piece's midpoint lands on it. Returning
+ * null there would report a mismatch for a board that is in fact correct.
+ *
+ * So a point on a boundary is resolved to the species of the faces adjoining
+ * it, and **only if they agree**. That keeps the check strict: a joint between
+ * two different species still comes back null and still fails.
+ */
 function speciesAt(partition: Partition, p: Point): SpeciesId | null {
   for (const face of partition.faces) {
     const b = boundingBox(face.polygon);
     if (p.x > b.minX && p.x < b.maxX && p.y > b.minY && p.y < b.maxY) return face.species;
   }
-  return null;
+
+  const touching = new Set<SpeciesId>();
+  for (const face of partition.faces) {
+    const b = boundingBox(face.polygon);
+    if (p.x >= b.minX && p.x <= b.maxX && p.y >= b.minY && p.y <= b.maxY) touching.add(face.species);
+  }
+  return touching.size === 1 ? [...touching][0]! : null;
 }
 
 /**
@@ -553,6 +577,118 @@ describe('image import', () => {
     const hex = result.sourceColors[0]!;
     const level = Number.parseInt(hex.slice(1, 3), 16);
     expect(level).toBeGreaterThan(170);
+  });
+});
+
+describe('snap to buildable', () => {
+  const candidate = (over: Partial<SplitCandidate>): SplitCandidate => ({
+    axis: 'x',
+    at: 1,
+    crosses: [0],
+    offCentre: 0.5,
+    largestCrossed: 100,
+    totalCrossed: 100,
+    ...over,
+  });
+
+  it('prefers the line that crosses fewest pieces', () => {
+    const chosen = chooseSplit([
+      candidate({ at: 1, crosses: [0, 1, 2], offCentre: 0 }),
+      candidate({ at: 2, crosses: [0], offCentre: 0.9 }),
+      candidate({ at: 3, crosses: [0, 1], offCentre: 0.1 }),
+    ]);
+    // Fewest crossed wins even though another line is dead centre: a crossed
+    // piece is a new glue line, which is the only visible change to the design.
+    expect(chosen.at).toBe(2);
+    expect(chosen.crosses).toHaveLength(1);
+  });
+
+  it('breaks a tie on crossings by centrality, then by area', () => {
+    const byCentre = chooseSplit([
+      candidate({ at: 1, crosses: [0], offCentre: 0.8 }),
+      candidate({ at: 2, crosses: [1], offCentre: 0.2 }),
+    ]);
+    expect(byCentre.at).toBe(2);
+
+    const byArea = chooseSplit([
+      candidate({ at: 1, crosses: [0], offCentre: 0.4, totalCrossed: 9000 }),
+      candidate({ at: 2, crosses: [1], offCentre: 0.4, totalCrossed: 400 }),
+    ]);
+    expect(byArea.at).toBe(2);
+  });
+
+  it('offers a repair for the pinwheel, flagged as leaving the pattern alone', () => {
+    const result = decomposeTarget(pinwheelTarget(), DEFAULT_SHOP, OPTIONS);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+
+    expect(result.refusal.code).toBe('notGuillotine');
+    expect(result.suggestion).toBeDefined();
+    expect(result.suggestion?.changesAppearance).toBe(false);
+    expect(suggestionIsSound(result.suggestion!.target)).toBe(true);
+    // One arm split in two: five pieces become six.
+    expect(result.suggestion!.target.pieces).toHaveLength(6);
+  });
+
+  /**
+   * The assertion the whole snapper exists to satisfy.
+   *
+   * The suggestion is built, evaluated, and then sampled against the
+   * **original** painting -- not against the suggestion. Splitting a piece
+   * keeps its species on both halves, so if the snap is honest about "the
+   * pattern stays identical", every sample point of the thing the user drew
+   * must come back the same species on the board that gets built.
+   */
+  it('builds, and matches the picture the user actually painted', () => {
+    const painted = pinwheelTarget();
+    const result = decomposeTarget(painted, DEFAULT_SHOP, OPTIONS);
+    expect(result.ok).toBe(false);
+    if (result.ok || !result.suggestion) return;
+
+    const rebuilt = decomposeTarget(result.suggestion.target, DEFAULT_SHOP, OPTIONS);
+    expect(rebuilt.ok).toBe(true);
+    if (!rebuilt.ok) return;
+
+    const evaluated = evaluate(rebuilt.graph, DEFAULT_SHOP);
+    const check = achievedMatchesTarget(painted, evaluated.workpiece.crossSection);
+    expect(check.checked).toBeGreaterThan(20);
+    expect(check.mismatches).toEqual([]);
+  });
+
+  it('reports the new glue lines, so the diff is the real cost', () => {
+    const painted = pinwheelTarget();
+    const suggestion = suggestBuildable(painted, DEFAULT_SHOP, OPTIONS);
+    expect(suggestion).not.toBeNull();
+
+    const lines = suggestionDiff(painted, suggestion!.target);
+    expect(lines.length).toBeGreaterThan(0);
+    // A split along a grid line, not a moved boundary.
+    for (const line of lines) expect(Number.isInteger(line.at)).toBe(true);
+  });
+
+  it('offers nothing when splitting cannot help', () => {
+    // A column narrower than a safe rip only gets worse when split.
+    const narrow: PaintTarget = {
+      columns: [inches(0.25), CELL, CELL],
+      rows: [CELL, CELL],
+      pieces: uniformTarget(3, 2, CELL, (c) => (c === 0 ? B : A)).pieces,
+    };
+    expect(suggestBuildable(narrow, DEFAULT_SHOP, OPTIONS)).toBeNull();
+  });
+
+  it('halves a piece too thick for stock, without needing a heuristic', () => {
+    const merged = mergeRect(uniformTarget(5, 5, CELL, () => A), 1, 1, 3, 3, B).target;
+    const result = decomposeTarget(merged, DEFAULT_SHOP, OPTIONS);
+    expect(result.ok).toBe(false);
+    if (result.ok || !result.suggestion) return;
+
+    expect(result.suggestion.changesAppearance).toBe(false);
+    const rebuilt = decomposeTarget(result.suggestion.target, DEFAULT_SHOP, OPTIONS);
+    expect(rebuilt.ok).toBe(true);
+    if (!rebuilt.ok) return;
+
+    const evaluated = evaluate(rebuilt.graph, DEFAULT_SHOP);
+    expect(achievedMatchesTarget(merged, evaluated.workpiece.crossSection).mismatches).toEqual([]);
   });
 });
 

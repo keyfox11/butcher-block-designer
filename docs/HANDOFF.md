@@ -9,12 +9,12 @@ including a table of what is specified but not yet built. The spec in [`docs/spe
 sits *between* them: why the code deviates from the spec where it does, which invariant catches
 which class of bug, and the traps that cost time.
 
-**Status:** P0 through P3 complete. 524 tests, CI green. Public under [MIT](../LICENSE) and live
+**Status:** P0 through P3 complete. 531 tests, CI green. Public under [MIT](../LICENSE) and live
 at <https://keyfox11.github.io/butcher-block-designer/>.
 
-**One thing is waiting on a decision, and it is small and self-contained:** `chooseSplit` in
-`core/decompose/snap.ts` carries the only `TODO(human)` in the tree. See
-[§10](#10-the-one-open-todo).
+No `TODO(human)` markers remain. The last one — `chooseSplit` in `core/decompose/snap.ts` — was
+settled on **fewest pieces crossed**; the reasoning and its known limit are in
+[§10](#10-the-snap-heuristic).
 
 ---
 
@@ -336,7 +336,15 @@ other. Measured on the pinwheel: bounding box 13.5", covered region ending at 12
 - **A bare `cat > file` with no heredoc reads stdin and hangs** — the same trap, met again at P3 in
   a throwaway `cat > "$TMPDIR/x" 2>/dev/null` where `$TMPDIR` was unset. It cost ten minutes and,
   worse, was briefly misread as the decomposer being slow on large grids. **If a command that
-  should take milliseconds appears to hang, suspect the shell before the code.**
+  should take milliseconds appears to hang, suspect the shell before the code.** Note it also
+  stayed alive in the background for 25 minutes afterwards — a hung stdin read does not time out,
+  so it is worth checking for strays after one.
+- **The backtick trap above is easy to re-read and still walk into.** It fired again while writing
+  this very section: a `node --input-type=module -e "..."` whose content held Markdown backticks
+  silently dropped every `` `identifier` `` and left `` in [](path) `` in the file. The script
+  reported success, because the shell had already eaten the text before node saw it. **Use
+  `Write`/`Edit` for any content containing backticks** — the rule is in this document precisely
+  because knowing it is not enough.
 - **Backticks inside `node -e "..."` break the shell.** A double-quoted bash string treats them as
   command substitution, so any script containing a Markdown backtick or a JS template literal dies
   with `unexpected EOF`. It bit twice while editing docs. Use `Edit` for anything containing
@@ -531,28 +539,39 @@ geometry, validation, and cut-list logic independently testable.
 
 ---
 
-## 10. The one open TODO
+## 10. The snap heuristic
 
-`chooseSplit` in [`core/decompose/snap.ts`](../src/core/decompose/snap.ts). It is the only
-`TODO(human)` in the tree, and it is deliberately the *last* thing in the phase rather than a
-loose end.
+`chooseSplit` in [`core/decompose/snap.ts`](../src/core/decompose/snap.ts). It was the last open
+decision in P3 and is now settled; this records what was chosen and what it gives up, because the
+choice is not recoverable from the code and the alternatives are all defensible.
 
 **What it decides.** When a painted arrangement admits no edge-to-edge cut, splitting one piece
-along a grid line unblocks it. Usually several lines would work, and they differ in what they cost
-— how many pieces they cut, how central they are, how large a piece they interrupt. `chooseSplit`
-picks one. It is roadmap open question 2 ("the best search heuristic needs empirical tuning") in
-its most concrete form, and there is no single right answer.
+along a grid line unblocks it. Several lines usually would, and they differ in what they cost: how
+many pieces they cut, how central they are, how large a piece they interrupt. This is roadmap open
+question 2 ("the best search heuristic needs empirical tuning") in its most concrete form.
 
-**Why the phase ships without it.** The refusal path — the actual exit criterion — does not depend
-on it. `decompose()` wraps suggestion-building in a `try`/`catch` on purpose: a suggestion is
-best-effort help, a clean refusal is the contract, and a fault in the snapper must never turn
-"here is why this cannot be built" into a crash. So today a non-guillotine arrangement refuses
-correctly and says *"No automatic repair for this one. The remedy above is the fix."*
+**Chosen: fewest pieces crossed**, then most central, then smallest total area crossed.
 
-Note that the other snap path already works: a piece too thick for stock is halved by
-`thinOversizePieces`, which needs no heuristic because the middle grid line is the only choice that
-cannot need splitting again on the same pass. That one is live and verified on the deployed build.
+The first term is not really about cost, it is about *honesty*. Every crossed piece becomes two
+with a glue line between them, and that glue line is the only visible change the snapper makes —
+the species on both sides is unchanged, so the pattern stays pixel-identical. Minimising pieces
+crossed is minimising how much the suggestion alters a drawing the user is being asked to accept.
+It minimises work too, but that is the lesser reason.
 
-**What lands when it is written.** The non-guillotine refusal gains a one-click repair, and for a
-rectilinear design that repair changes the picture not at all — both halves keep the species, so
-only a glue line appears. The button already knows how to say so.
+Centrality second because tree depth is cure cycles and a balanced split keeps the tree shallow.
+Area last because a user who merged a big region chose its visual weight deliberately, and a glue
+line through the middle of it reads as more of an intrusion than one across a single cell.
+
+**What it gives up, stated plainly: it is greedy per iteration, not globally optimal.** A line
+crossing one piece may leave the region still blocked where a line crossing two would have cleared
+it, so the repair loop can add more glue lines in total than a lookahead search would. Termination
+is not at risk — each repair strictly raises the piece count, bounded by the cell count, and a
+one-piece-per-cell grid always decomposes — but minimality is not claimed. Tuning this against real
+painted targets is still open.
+
+Measured on the canonical case: a pinwheel is repaired with **one** glue line, and the resulting
+board is verified to match the original painting at every sample point.
+
+**The other snap path needs no heuristic.** A piece too thick for stock is halved by
+`thinOversizePieces` on its longer span, because the middle grid line is the only choice that
+cannot need splitting again on the same pass.
