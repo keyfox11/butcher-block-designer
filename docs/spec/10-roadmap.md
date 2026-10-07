@@ -105,6 +105,37 @@ obvious — which is why it comes before the free-paint surface that depends on 
 its glue-up count, and for a deliberately unbuildable pattern (a curve, an interior island)
 receive a clear refusal naming the offending regions — never a silent approximation.
 
+> **Outcome.** Met, and the component the spec warned "may not fully succeed" turned out to be the
+> cheapest part of the phase — because the search is far smaller than the spec assumed.
+>
+> The textbook guillotine decomposition is a dynamic program over every candidate cut position,
+> O(X²Y²) sub-rectangles. It does not need to be. A vertical cut that runs edge to edge inside a
+> vertical sub-rectangle runs edge to edge in its parent too, since vertical splits preserve the
+> parent's y-range. So splitting at **every** valid line in one direction at once loses nothing,
+> and three things follow: each node has exactly two candidates rather than O(X+Y); the tree
+> **strictly alternates** axis with no normalisation pass; and a failure is a **proof** rather than
+> a timeout. That last one is what the phase rests on — the refusal can be stated as a fact because
+> the search enumerated every edge-to-edge cut there is.
+>
+> Measured: 1 ms for a realistic board, 54 ms for a deliberately absurd 48 × 48 grid of 2,304
+> pieces, against the spec's 2-second budget. The worker is insurance, not necessity, and is
+> documented as such.
+>
+> **What the phase actually cost** was elsewhere, and in two places the spec did not flag. First,
+> the **emitter**: proving a decomposition exists says nothing about how to build it, and reversing
+> the recursion naively gives a plan that crosscuts and glues every cell separately — correct, and
+> one no one would follow. Second, the **search's own cost model**, which preferred an `x`-rooted
+> tree for a plain grid because it has fewer splits, while actually costing six stage-1 panels
+> against two. Panel sharing is only knowable after identical bands are matched, which happens
+> downstream in the emitter, so the search cannot see it; the axis preference stands in for it and
+> had to outrank the glue-up count.
+>
+> **Two deliberate narrowings**, both stated as refusals rather than hidden. Faces must be
+> axis-aligned rectangles, so bevelled lay-ups are refused by the paint surface with a message
+> pointing at the angled generators rather than at a physical impossibility. And "known tilings"
+> (strategy 4) is not implemented, because nothing reachable from a square paint lattice can
+> produce a honeycomb — see [`07`](07-pattern-library.md#the-decomposer).
+
 ---
 
 ## P4 — Finish

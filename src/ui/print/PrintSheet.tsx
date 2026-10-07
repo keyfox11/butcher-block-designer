@@ -34,8 +34,14 @@ export function PrintSheet({ cutList, steps, findings, assemblyMaps }: PrintShee
           {formatTicks(cutList.finished.length.asMeasured)} ×{' '}
           {formatTicks(cutList.finished.thickness.asMeasured)}
         </p>
+        {/* The legend is a palette key: one entry per species, with that
+            species' total. `purchase` carries one line per BILLET, which for a
+            generated design happened to be one per species and for a painted
+            one is several -- a free-paint board can want four panels, each with
+            its own stock thickness. Keying on species alone also meant React
+            saw duplicate keys and was free to drop rows. */}
         <dl className="print-legend">
-          {cutList.purchase.map((line) => (
+          {totalBySpecies(cutList.purchase).map((line) => (
             <div key={line.species}>
               <dt>
                 <span className="swatch" style={{ background: SPECIES[line.species]?.color }} />
@@ -73,8 +79,11 @@ export function PrintSheet({ cutList, steps, findings, assemblyMaps }: PrintShee
             </tr>
           </thead>
           <tbody>
-            {cutList.purchase.map((line) => (
-              <tr key={line.species}>
+            {/* One row per board to buy, so the same species appears as many
+                times as it has distinct rough sizes. That is what you take to
+                the yard -- but it means the key has to carry the position. */}
+            {cutList.purchase.map((line, i) => (
+              <tr key={`${line.species}-${i}`}>
                 <td>{line.displayName}</td>
                 <td>
                   {formatTicks(line.rough.thickness)} × {formatTicks(line.rough.width)} ×{' '}
@@ -100,8 +109,10 @@ export function PrintSheet({ cutList, steps, findings, assemblyMaps }: PrintShee
         <p className="print-note">
           Every finished dimension traced back to rough stock, so any number here can be checked.
         </p>
-        {cutList.ledger.sections.map((section) => (
-          <table key={section.title} className="ledger">
+        {/* Section titles repeat once a design has more than one billet of a
+            species -- "Stock — Black walnut (width)" four times over. */}
+        {cutList.ledger.sections.map((section, i) => (
+          <table key={`${section.title}-${i}`} className="ledger">
             <caption>
               {section.title} <span className="direction">({section.direction})</span>
             </caption>
@@ -219,4 +230,24 @@ function groupByPhase(steps: readonly Step[]): Array<[Phase, Step[]]> {
     map.get(step.phase)!.push(step);
   }
   return order.map((phase) => [phase, map.get(phase)!]);
+}
+
+/**
+ * Board feet per species, for the cover legend.
+ *
+ * `CutList.purchase` is one line per billet, which is right for the shopping
+ * table -- you buy boards, not species. The legend is a different thing: a
+ * colour key the reader uses to decode the drawings, so it wants one entry per
+ * species carrying that species' total.
+ */
+function totalBySpecies(
+  purchase: readonly { species: string; displayName: string; boardFeet: number }[],
+): Array<{ species: string; displayName: string; boardFeet: number }> {
+  const totals = new Map<string, { species: string; displayName: string; boardFeet: number }>();
+  for (const line of purchase) {
+    const existing = totals.get(line.species);
+    if (existing) existing.boardFeet += line.boardFeet;
+    else totals.set(line.species, { ...line });
+  }
+  return [...totals.values()];
 }

@@ -314,3 +314,70 @@ td.setting { font-family: var(--mono); font-size: 13.5px; }
   .scale-bar { color: #333; }
   .assembly-svg, .scale-bar svg { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 }
+
+/* ---- tier 2: the paint surface ------------------------------------------ */
+
+.tier-switch { display: inline-flex; gap: 2px; margin-right: 14px; padding: 2px; background: var(--surface-2); border-radius: 6px; }
+.tier-switch button { border: none; background: transparent; }
+.tier-switch button.active { background: var(--accent); color: #1a1510; }
+
+.share-note { margin: 6px 0 0; font-size: 12.5px; color: var(--warning); width: 100%; }
+
+/* A pane is a fixed-size box on purpose. Any status text whose content varies
+   needs a container whose size does not, or the board rescales as the cursor
+   crosses it -- the 2-D canvas learned that one the hard way. */
+.paint-pane { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+
+.paint-canvas { touch-action: none; cursor: crosshair; }
+.paint-canvas.tool-merge { cursor: cell; }
+.paint-canvas.tool-split { cursor: alias; }
+
+.paint-lattice line { stroke: rgba(0, 0, 0, 0.22); }
+.paint-joints rect { fill: none; stroke: rgba(10, 8, 5, 0.75); }
+.paint-selection { fill: rgba(201, 139, 60, 0.22); stroke: var(--accent); }
+
+/* Problem regions are drawn over the design, never instead of it. The target
+   keeps showing what the user drew; the outline says where it cannot be built. */
+.problem-region { fill: rgba(226, 97, 74, 0.16); stroke: var(--error); stroke-linejoin: round; }
+.problem-extent { fill: none; stroke-dasharray: 10 6; }
+
+.stale-badge {
+  margin: 0; padding: 7px 10px; font-size: 12.5px; border-radius: 4px;
+  color: var(--warning); background: rgba(216, 163, 58, 0.12);
+  border-left: 3px solid var(--warning);
+}
+
+.paint-tools, .paint-palette { display: flex; flex-wrap: wrap; gap: 6px; }
+.paint-swatch {
+  display: flex; align-items: center; gap: 7px; padding: 5px 9px; font-size: 12.5px;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 5px; color: var(--text);
+}
+.paint-swatch.active { border-color: var(--accent); background: rgba(201, 139, 60, 0.16); }
+.paint-swatch .swatch { width: 15px; height: 15px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.4); }
+
+.paint-progress { display: flex; align-items: center; gap: 9px; margin: 10px 0; }
+.paint-progress progress { flex: 1; height: 6px; }
+
+.paint-refusal {
+  margin-top: 16px; padding: 11px 13px; border-radius: 5px;
+  background: rgba(226, 97, 74, 0.1); border-left: 3px solid var(--error);
+}
+.paint-refusal h3 { margin: 0 0 7px; font-size: 13.5px; color: var(--error); }
+.paint-refusal p { margin: 0 0 7px; font-size: 12.5px; line-height: 1.5; }
+.paint-internal { background: rgba(111, 159, 196, 0.1); border-left-color: var(--info); }
+.paint-internal h3 { color: var(--info); }
+.paint-snap {
+  margin-top: 4px; width: 100%; padding: 7px; font-size: 12.5px;
+  background: var(--accent); color: #1a1510; border: none; border-radius: 5px; cursor: pointer;
+}
+
+.paint-import input[type="file"] { font-size: 12px; color: var(--muted); }
+.paint-quantise { margin-top: 10px; padding: 9px; border-radius: 5px; background: var(--surface-2); }
+.paint-quantise p { margin: 8px 0; font-size: 12px; line-height: 1.45; color: var(--muted); }
+.quantise-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.quantise-pair img, .quantise-pair svg { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 3px; background: #000; }
+.quantise-poor { border-left: 3px solid var(--error); }
+.quantise-fair { border-left: 3px solid var(--warning); }
+.quantise-good { border-left: 3px solid var(--accent); }
+
+.summary-timing { color: var(--muted); font-variant-numeric: tabular-nums; }

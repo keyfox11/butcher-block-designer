@@ -269,6 +269,40 @@ honeycomb via rhombus sticks being the one that matters
 **5 — Failure.** Report the specific faces that cannot be reached and why, and offer a snapped
 alternative with a visible diff.
 
+### As built
+
+Strategies 1 and 2 collapsed into one, and it is a better answer than either. Strategy 3 falls out
+of the same recursion, and strategy 4 is not implemented.
+
+**Steps 1 and 2 are the same step.** Grid detection was specified as a fast path around the
+guillotine search, on the assumption the search would be expensive. It is not. Splitting at *every*
+valid line in one direction at once is lossless — a line that spans a child spans its parent, so
+nothing is given up by taking them all — which reduces each node to two candidates instead of
+O(X+Y) and makes the whole search a two-way memoised recursion. A grid is then simply the case
+where the first `y` split yields bands of single pieces, reached in about a millisecond without a
+special path to maintain.
+
+**Step 3 needs no separate strategy.** Multi-stage *is* a deeper tree. A `y` split spanning the
+full board length separates slices; a `y` split inside a slice is layers glued face to face before
+the panel is ripped. Both are the same node type and the emitter reads the difference off the
+geometry.
+
+**Step 4 is not implemented, and the honest reason is that nothing can reach it.** A honeycomb
+needs hexagonal faces, and the paint lattice is square — so a tiling matcher would sit behind a
+door with no handle on this side. The tumbling-block generator covers the pattern from tier 1,
+where it belongs. If a hex-capable region tool ever lands, this is where its matcher goes.
+
+**Search order turned out to matter for a reason the spec did not name.** Minimising tree depth is
+right, but depth alone picks the wrong tree for a plain grid: an `x`-rooted decomposition of a
+6 × 8 grid ties on depth and has *fewer* splits, while costing six stage-1 panels against two.
+Identical bands share a panel, and which bands are identical is only known after the search, so the
+cost model cannot see the saving. Preferring a `y` root is what stands in for it.
+
+**One narrowing, stated plainly in the UI.** A face must be an axis-aligned rectangle. Bevelled
+faces are genuinely buildable — the layered generators build them — but they do not live on a
+square lattice, so the paint surface refuses them with a message naming the angled generators
+rather than implying the geometry is impossible.
+
 ### What the decomposer cannot do
 
 Stated plainly, because the UI must not imply otherwise:

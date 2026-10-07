@@ -3,15 +3,15 @@
 Design an end-grain cutting board — including patterns no other tool can represent — and get a
 cut list you can actually trust at the saw.
 
-A browser app. Pick a pattern, set the dimensions and species, and it produces a shopping list in
-board feet, a cut list with fence settings, step-by-step build instructions, per-glue-up assembly
-maps, and a 3-D preview. It refuses to generate a plan it believes is unbuildable, and it tells
-you why.
+A browser app. Pick a pattern — or paint one yourself — set the dimensions and species, and it
+produces a shopping list in board feet, a cut list with fence settings, step-by-step build
+instructions, per-glue-up assembly maps, and a 3-D preview. It refuses to generate a plan it
+believes is unbuildable, and it tells you why.
 
 > **Live: <https://keyfox11.github.io/butcher-block-designer/>** — nothing to install.
 >
-> **Status: working tool, P2 complete.** 14 patterns, 30 validation rules, 491 tests, CI green.
-> The next phase is an open decision — see [`docs/HANDOFF.md`](docs/HANDOFF.md).
+> **Status: working tool, P3 complete.** 14 patterns plus a free-paint surface, 30 validation
+> rules, 524 tests, CI green. See [`docs/HANDOFF.md`](docs/HANDOFF.md) for what is next.
 >
 > **Picking this up cold? Read [`docs/HANDOFF.md`](docs/HANDOFF.md) first.** It covers which
 > invariant catches which class of bug, where the code deviates from the spec and why, and the
@@ -107,6 +107,26 @@ its own internal pattern. The 3D cube derives everything from a single number �
 thickness — via the closure condition `ripWidth = T / cos 30°`, which makes the hexagon exactly
 `2T` across the flats.
 
+**Or paint your own.** The second tier is a paint surface: colour cells, merge them into larger
+pieces, and a decomposer searches for a sequence of cuts and glue-ups that produces exactly that
+picture. It is the only part of the tool that can be asked for something impossible, so the
+interesting behaviour is what it does then.
+
+It **refuses, and says which pieces and why** — never a silent approximation, because a board that
+does not match the drawing is a worse outcome than a clear no. The refusal is a proof rather than a
+search giving up: the five pieces of a pinwheel admit no cut that crosses the region edge to edge,
+so there is no first cut and equally no last glue-up, and the tool says so in those terms. When
+there is a repair it offers one, and for a rectilinear design that repair only ever *adds a glue
+line* — the pattern stays pixel-identical, and the button says so rather than promising a diff of
+nothing.
+
+A refusal never discards the design. The last version that built stays on screen, marked stale, so
+dragging back is always available.
+
+Images import through the same door: quantised to the species palette in a perceptual colour space,
+with the result shown **beside the source before anything is generated**. Quantising a photograph to
+four wood tones destroys nearly all of it, and the only fair way to say so is with a picture.
+
 **30 validation rules** across eight categories — safety, tooling envelope, geometry, grain
 orientation, wood movement, dimensions, food safety, material budget. Errors block export; the cut
 list is what somebody takes to the saw. Every rule cites a knowledge-base entry, and that citation
@@ -137,8 +157,9 @@ gaps that matter:
 | --- | --- |
 | `V-TOL-*` — accumulated tolerance (2 rules) | Specified; not implemented. `toleranceBand()` exists in `core/units` and nothing calls it, so `perCutTolerance` is inert. |
 | Sled capacity and clamp reach checks | `sledCapacity` and `clampMaxReach` sit in the shop profile with no rule behind them. |
-| `V-GEOM-040` constructibility proof | Narrowed to a clampability check. The full decomposition *is* the P3 decomposer and should be built once, there. |
-| Free-paint canvas, image import, decomposer | P3. |
+| `V-GEOM-040` constructibility proof | Narrowed to a clampability check. The decomposition now exists in `core/decompose`, but the rule still does not call it — see [`04`](docs/spec/04-validation-rules.md#v-geom-040--the-constructibility-proof) for why that is a decision rather than a gap. |
+| Decomposer strategy 4, "known tilings" | Not built, and nothing can reach it: a honeycomb needs hexagonal faces and the paint lattice is square. The tumbling block covers the pattern from tier 1. |
+| Bevelled faces on the paint surface | Refused, not approximated. The lattice is square; the message names the angled generators instead. |
 | Graph view (tier 3), custom species | Specified; not built. The species table has 9 entries with provenance. |
 | Edge treatments — chamfer, juice groove, feet | P4. |
 | `trim` by arbitrary outline | Every edge resolution needed so far is an anchored rectangle. |
@@ -150,7 +171,7 @@ gaps that matter:
 ## Repo layout
 
 ```
-src/core/      everything that has to be correct — no React, no DOM (11k lines)
+src/core/      everything that has to be correct — no React, no DOM (11k lines, tests aside)
   units/         exact integer arithmetic: 1 tick = 1/8000"
   model/         the construction graph: Workpiece, Op, ShopProfile, Project
   geometry/      the evaluator; polygon clipping; the topological union
@@ -158,9 +179,10 @@ src/core/      everything that has to be correct — no React, no DOM (11k lines
   validation/    the 27 rules, as data
   cutlist/       allowance ledger, cut list, instructions, assembly maps
   generators/    one module per pattern family
+  decompose/     the target-to-graph solver behind the paint surface
   persist/       project files and share-link codec
-src/ui/        React views: 2-D canvas, 3-D viewport, panels, print sheets
-src/app/       composition root
+src/ui/        React views: 2-D canvas, 3-D viewport, paint surface, panels, print sheets
+src/app/       composition root, decomposer worker
 docs/spec/     the design, 12 documents
 docs/HANDOFF.md  read this first when resuming
 tools/         the spec checker
@@ -195,7 +217,13 @@ is unrepresentable rather than merely rejected.
 the operation at fault. The faces of every cross-section must tile their outline. A non-grid
 lay-up's gaps are found *topologically* — a missing cell is an enclosed ring, located exactly,
 rather than a number that has to beat a tolerance. Property-based tests over randomly generated
-graphs; 491 tests in total.
+graphs; 524 tests in total.
+
+The paint surface has an invariant of its own, and it catches what conservation cannot. Over
+randomly painted targets the tool must land in exactly two states: a refusal that names what is
+wrong, or a board whose finished cross-section is **sampled against the painting and matches at
+every point**. A graph that evaluates proves the geometry is self-consistent, and conservation
+proves no wood went missing — a board can satisfy both and still be the wrong picture.
 
 Settings are checked for *liveness*: every field in the shop profile is pushed to a hostile value
 and the generated plan must change. A knob the user can set that nothing reads is worse than an
@@ -224,7 +252,7 @@ Exits non-zero, so it gates CI.
 
 | Doc | What it covers |
 | --- | --- |
-| [`docs/HANDOFF.md`](docs/HANDOFF.md) | **Start here when resuming.** Status, spec deviations, which invariant catches which bug, traps, the P3 plan |
+| [`docs/HANDOFF.md`](docs/HANDOFF.md) | **Start here when resuming.** Status, spec deviations, which invariant catches which bug, traps, and the one open TODO |
 | [`00-overview.md`](docs/spec/00-overview.md) | Vision, goals, non-goals, competitive analysis, the core thesis |
 | [`01-woodworking-domain.md`](docs/spec/01-woodworking-domain.md) | **The knowledge base.** Verified construction math, failure modes, species data, safety rules |
 | [`02-construction-graph.md`](docs/spec/02-construction-graph.md) | The data model: operation DAG, `Workpiece` type, exact arithmetic |
@@ -248,7 +276,7 @@ output trustworthy; the model in `02` is what makes it expressive.
 **[MIT](LICENSE).** Use it, fork it, sell it — keep the notice.
 
 Deployed to GitHub Pages at <https://keyfox11.github.io/butcher-block-designer/>, published by CI
-only after the spec checker, typecheck, lint, `core/` boundary and all 491 tests pass. A build that
+only after the spec checker, typecheck, lint, `core/` boundary and all 524 tests pass. A build that
 fails its own validator does not replace the site.
 
 **Nothing here has been built in wood yet.** The arithmetic is verified against two independent

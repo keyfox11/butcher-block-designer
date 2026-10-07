@@ -74,6 +74,23 @@ Showing target-vs-achieved as distinct states is the crux. A tool that silently 
 painted design produces a board that does not look like what was drawn, which is a worse
 betrayal than refusing.
 
+> **As built at P3.** The two states are two panes, side by side and always both visible, rather
+> than one canvas that switches. The left pane is the target and never changes on its own; the
+> right is the evaluated graph.
+>
+> Step 4 gained a clause the spec did not have, and it is the more important half. **A refusal does
+> not empty the viewport.** The last design that built stays on screen with a stale badge, so
+> "undo the last stroke" is available as a recovery rather than something to reconstruct from
+> memory. That is [P5](10-roadmap.md#p5--interaction-repair)'s first item, applied here before P5
+> because tier 2 is where an illegal state is *reachable by drawing*, not just by dragging a
+> slider too far.
+>
+> The snap in step 4 is also narrower than "nearest buildable", on purpose. For a rectilinear
+> arrangement every repair is a **split along a grid line keeping the species**, so the picture
+> does not change at all — only a glue line appears where there was solid wood. The button says so
+> ("Add 3 glue lines — the pattern stays identical") rather than offering a diff of nothing. A
+> repair that would genuinely change the drawing is flagged separately and shows one.
+
 ## The 3-D preview
 
 Three.js via react-three-fiber. Purpose is to answer "will this actually look good", which a flat

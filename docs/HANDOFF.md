@@ -9,10 +9,12 @@ including a table of what is specified but not yet built. The spec in [`docs/spe
 sits *between* them: why the code deviates from the spec where it does, which invariant catches
 which class of bug, and the traps that cost time.
 
-**Status:** P0, P1 and P2 complete. 491 tests, CI green. Public under [MIT](../LICENSE) and live
+**Status:** P0 through P3 complete. 524 tests, CI green. Public under [MIT](../LICENSE) and live
 at <https://keyfox11.github.io/butcher-block-designer/>.
-**The next phase is an open decision** — see [§6](#6-the-open-decision), which gained an option E
-(P5, interaction repair) on 2026-10-07.
+
+**One thing is waiting on a decision, and it is small and self-contained:** `chooseSplit` in
+`core/decompose/snap.ts` carries the only `TODO(human)` in the tree. See
+[§10](#10-the-one-open-todo).
 
 ---
 
@@ -23,11 +25,13 @@ at <https://keyfox11.github.io/butcher-block-designer/>.
 | **P0** — correctness core | ✅ done | Checkerboard cut list reproduces CBDJS golden case G1 exactly; ledger traces every dimension to rough stock; conservation holds over random graphs |
 | **P1** — angles, 3-D, sharing | ✅ done | All five CBDJS examples reproduce with correct cut lists and 3-D previews; share links well inside the 2,000-char budget (223–263 as measured at P1; ~370 now that the generator payload carries three more parameters) |
 | **P2** — multi-stage | ✅ done | 3D cube from a single `stockThickness` with `hexAcrossFlats == 2T` verified on the built geometry; honeycomb assembly map labels all 35 pucks; two explicit edge resolutions; herringbone, pinwheel and basket weave with grain perpendicular throughout and no mitered crosscut anywhere |
-| P3 — free paint + decomposer | ⬜ next | |
+| **P3** — free paint + decomposer | ✅ done | Paint an irregular non-grid pattern and get a graph with its glue-up count; paint a pinwheel, a curve or an enclosed region and get a refusal naming the offending regions, with the last good design still on screen. Verified on the deployed build, not only in tests |
 | P4 — edge treatments, polish | ⬜ | |
+| P5 — interaction repair | 🟨 partly | Item 1 (an illegal state must not destroy the design) is done *for tier 2*. Tier 1 still blanks the viewport when a generator throws |
 
-Implemented: 14 patterns, 30 validation rules, cut list + allowance ledger + instructions +
-assembly maps, 2-D canvas, 3-D viewport, share links, project files, shop profile UI.
+Implemented: 14 patterns, a free-paint surface with image import, 30 validation rules, cut list +
+allowance ledger + instructions + assembly maps, 2-D canvas, 3-D viewport, share links, project
+files, shop profile UI.
 
 > **P2's exit criterion was met, but three items on P2's own list were not done**, and the summary
 > at the time said "P2 complete" without that. `V-MOVE-*` has since been implemented; custom species
@@ -54,6 +58,10 @@ one looks like an oversight if you meet it cold.
 | — | **`LaminateOp.sequence: 'taped'`** added | A real third method, not a weaker clamp. |
 | — | **`TrimOp` anchor** added | A trim has a position, not just a size. |
 | `rotate180: boolean` (P0/P1) | **`rotate: MilliDeg`** | Restores what the spec always said. P0/P1 narrowed it; the hexagon needs the general form. |
+| Decomposer: grid detection *then* guillotine search | **One search** | Maximal splitting makes the general search as cheap as the fast path would have been. A grid is just the case where the first `y` split yields bands of single pieces. One code path instead of two that must agree. |
+| `DecomposeResult` admits `exact: false` with a diff | **Never emitted** | The spec's own text forbids silent approximation. An approximation is offered as `Refusal.suggestion`, which the user has to accept. The variant stays in the type as documentation of what was deliberately not done. |
+| Decomposer strategy 4, known tilings | **Not built** | Unreachable, not skipped: a honeycomb needs hexagonal faces and the paint lattice is square. |
+| — | **`maxStockThickness`** added | How thick a board the shop can get. It gates every piece and produces a real refusal. Deliberately a `DecomposeOptions` field rather than a `ShopProfile` one, to avoid a schema bump for a P3-only setting — a candidate for promotion once the surface has been used. |
 
 ---
 
@@ -140,6 +148,48 @@ a 2⅞" board — and the 3-D viewport rendered **black**. Found only because sh
 how I got a good look at the knife. A scale reference that blanks the view for small boards is
 worse than no scale reference, and small boards are exactly where one earns its keep.
 
+### Sampling the achieved board against the painting — catches a right board that is the wrong picture
+
+Added at P3, and it is the only check that can see this class of fault. The paint tier is the first
+place where the tool is *asked* for something rather than generating it, so "did it build?" and
+"did it build what was asked for?" come apart.
+
+A graph that evaluates proves the geometry is self-consistent. Conservation proves no wood went
+missing. **Both hold for a board with two species transposed**, or a band placed a row off. The
+property test therefore samples the finished cross-section at nine points per painted piece and
+requires the species to match — mapping through the trim, since the finished board is inset by
+`trimPerEdge` on each edge.
+
+Over 250 random targets, every run must land in one of exactly two states: a refusal that names a
+region, or an exact match. There is deliberately no third state.
+
+### Reading the search's own cost model — catches a proxy that is blind to a real cost
+
+The most instructive failure of the phase, and it came from a test asserting something that looked
+cosmetic: that a plain grid decomposes as the ordinary two-stage board.
+
+It did not. The search preferred an `x`-rooted tree — six columns, each a stack of eight cells —
+because by its own cost model that is *cheaper*: 7 splits against 9. It is also six stage-1 panels
+against two, which is roughly three times the lumber and five extra setups.
+
+The proxy was not wrong, it was **blind**. Identical bands share one panel, and which bands are
+identical is only knowable after the emitter has matched them up — downstream of the search that
+has to choose. The fix was not a smarter proxy. It was recognising that the axis preference
+*stands in* for the cost the proxy cannot see, and therefore has to outrank it.
+
+**The transferable part:** when a search's cost model and the thing it is estimating are computed
+in different passes, a tie-break that looks like taste may be carrying the whole estimate.
+
+### An exact area identity, where a bounding box was a heuristic
+
+The island check first used bounding-box containment, and called a circle drawn over a grid an
+"interior island" because a dozen cells sit inside the circle's box.
+
+The exact replacement came from the integer geometry the project already rests on: a polygon that
+doubles back around a void has less shoelace area than its bounding box **by precisely that void**.
+So `bboxArea(outer) − area(outer) === Σ area(enclosed)` is a test, not an estimate, and it
+distinguishes "inside the box" from "inside the shape" with no tolerance at all.
+
 ### Citation integrity — catches knowledge drifting out of the knowledge base
 
 Every validation rule must cite a KB entry that exists. Caught `V-GEOM-030` citing `KB-A06`,
@@ -173,7 +223,28 @@ named in the test, so implementing one breaks it until the list is updated.
 
 ### Reading the generated output
 
-Still the broadest net, and it caught the worst bug in P2.
+Still the broadest net. It caught the worst bug in P2, and the only bug in P3 that mattered.
+
+**P3's catch: the print sheet keyed rows on species.** Every generated pattern uses one billet per
+species, so species *happened* to be unique and the shopping list, the cover legend and the
+allowance ledger all keyed on it. A painted design uses one billet per species **per stock
+thickness per panel** — four walnut billets is ordinary — and React is entitled to resolve
+duplicate keys by dropping children. A dropped row is a board missing from somebody's lumber order.
+
+Two different fixes, because they were two different mistakes sharing one symptom. The shopping
+*table* is right to list each board separately — you buy boards, not species — so it only needed a
+key carrying the position. The cover *legend* is a colour key and was genuinely wrong: it showed
+six walnut swatches where it should show one with the species total.
+
+Found by reading the console on the deployed path, not by any test, and now pinned by one in
+`decompose.test.ts` that asserts a painted design yields several purchase lines for one species.
+
+> **Two traps fired while confirming the fix, both already in [§5](#5-traps-that-cost-time).** The
+> console buffer did not clear across a reload *or* a navigate — the stack trace still carried the
+> pre-edit HMR module id (`?t=...`), so the fixed page was being judged by errors from the broken
+> one. A fresh tab settled it in seconds. **Check the module timestamp in a stack trace before
+> believing an error is current**, and when in doubt open a new tab rather than arguing with a
+> buffer.
 
 - Instructions quoted a **1/32"** per-pass limit when the profile said **1/64"** (`formatTicks`
   rounds; a limit must *floor*).
@@ -222,6 +293,21 @@ they compute to a negative width (−0.366" at 30°).
 **`reorient` is a no-op on geometry.** It relabels which axis is "up". If it ever transforms
 coordinates, the model is wrong.
 
+**In a cut tree, the same axis means different operations at different depths — and it is forced,
+not chosen.** A `y` split whose region spans the **full board length** separates slices, so each
+part's y extent becomes a panel's stock thickness. A `y` split any deeper is inside one slice, so
+its parts are layers glued face to face before the panel is ripped. There is no freedom here: an
+`x` split preserves its parent's y range, so every part of a root-level `x` split still spans the
+whole board length, and nothing below a full-length region can be anything but slices. `emit.ts`
+tests `fullLength(rect)` rather than tracking depth, for exactly that reason.
+
+**A piece's constraint is `min(width, height) ≤ maxStockThickness`, not `height`.** A stick can be
+rolled a quarter turn about its own length before the glue goes on — free, and it leaves the grain
+exactly where it was — so a tall narrow piece comes from stock as thick as it is *wide*, ripped to
+its height. Without that, merging a column of cells would ask for stock as thick as the board is
+long. `LaminateMember.rotate` carries it, and a rolled leaf needs a single-member laminate node of
+its own because only a member placement can express a rotation.
+
 **Round `j × pitch`, never `j × round(pitch)`.** A lattice whose pitch is irrational (the honeycomb
 row pitch is `T√3`) accumulates half a tick per row otherwise, which exceeds the weld radius by
 row eight. The *double* row period is exactly `3 × ripWidth` — an integer — which is what
@@ -247,6 +333,10 @@ other. Measured on the pinwheel: bounding box 13.5", covered region ending at 12
   mid-content; `python - <<'PY' || node -e '...'` hung forever on stdin (no python installed, and
   `||` never fires because the left side never *exits*). Use `Write`/`Edit` for source files, and
   `command -v` rather than `||` when the left side reads stdin. Short heredocs are fine.
+- **A bare `cat > file` with no heredoc reads stdin and hangs** — the same trap, met again at P3 in
+  a throwaway `cat > "$TMPDIR/x" 2>/dev/null` where `$TMPDIR` was unset. It cost ten minutes and,
+  worse, was briefly misread as the decomposer being slow on large grids. **If a command that
+  should take milliseconds appears to hang, suspect the shell before the code.**
 - **Backticks inside `node -e "..."` break the shell.** A double-quoted bash string treats them as
   command substitution, so any script containing a Markdown backtick or a JS template literal dies
   with `unexpected EOF`. It bit twice while editing docs. Use `Edit` for anything containing
@@ -261,11 +351,18 @@ other. Measured on the pinwheel: bounding box 13.5", covered region ending at 12
 
 ---
 
-## 6. The open decision
+## 6. The open decision — resolved, and what is left of it
 
-**P2 is finished and nothing is half-built. The next direction was deliberately left open**, so
-this section exists to be picked up cold rather than re-derived. Four options were put forward;
-none was chosen.
+**P3 was taken, and is done.** What follows is the option list as it stood, annotated with what
+remains. Options A, B and C are untouched and are the obvious candidates for what comes next; the
+recommendation now is **E, then A**, for the reason E always had: it is the only item every user
+meets on their first session.
+
+> **What P3 cost, against what the spec expected.** The spec called the decomposer "the one piece
+> that may not fully succeed". It was the cheapest part of the phase — see the outcome note in
+> [`10`](spec/10-roadmap.md#p3--creative-freedom). The expense was in the two places nobody flagged:
+> turning a proof of decomposability into a *build plan* a person would follow, and discovering
+> that the search's cost model was blind to panel sharing.
 
 The roadmap says P3 next, but that ordering is not binding — P3 is also the one component the spec
 says may not fully succeed, and it benefits most from everything else being solid first.
@@ -328,7 +425,7 @@ Juice groove, chamfer, roundover, feet — with `V-DIM-030` and `V-DIM-050`, whi
 exist before they can do anything. The most user-visible gap: a cutting board designer with no
 juice groove option is incomplete, and the geometry is already specified.
 
-### D — P3, free paint and the decomposer
+### D — P3, free paint and the decomposer ✅ **done**
 
 The roadmap's next phase, and the biggest capability jump.
 
@@ -351,6 +448,17 @@ with no voids".
 producing a graph for most painted targets and quietly approximating the rest. Approximating is the
 one thing it must not do. A clear refusal naming the offending regions is a better product than a
 cut list that cannot be followed, and the machinery to say which faces are unreachable exists.
+
+> **How that risk actually landed.** It did not materialise, and the reason is structural rather
+> than careful: maximal splitting makes the search *exhaustive*, so a failure is a proof that no
+> decomposition exists rather than a search giving up. There was never a case where the tool "could
+> not find" an answer and might have been tempted to approximate — it either finds the answer or
+> knows there is none. `DecomposeResult.exact` is consequently always `true`, and the inexact
+> variant the spec allowed is in the type purely as documentation of a road not taken.
+>
+> The union outline was predicted to be load-bearing. It was not — the arrangement is rectilinear,
+> so exact integer rectangle arithmetic answered everything. What *was* load-bearing, and
+> unforeseen, is that the emitter is a harder problem than the search.
 
 ---
 
@@ -398,7 +506,11 @@ the rule gaps in [§7](#7-the-validator-gap).
 | **Multi-stage material cost** | A tumbling block runs ~3.6× finished volume and herringbone ~3.1×, against KB-A12's 1.5–2.5× band for an ordinary end-grain board. `V-MAT-020` warns and now names where the wood goes. Whether the band should scale with pattern class is a judgement call left open rather than guessed. |
 | **Custom species, tier-3 graph view** | On P2's list, not built. The species table has 9 rows, 4 of them with `null` coefficients where no source was found — `V-MOVE-010` reports that it cannot fully assess those mixes rather than substituting a plausible number. |
 | **Sugar maple provenance** | Sources give both 4.8/9.9 and 4.9/9.5. Recorded, not averaged. |
-| **Bundle size** | `BoardScene` chunk is ~1 MB (275 kB gzipped). Lazy-loaded, so it is off the first paint. |
+| **Bundle size** | `BoardScene` chunk is ~1 MB (275 kB gzipped). Lazy-loaded, so it is off the first paint. The decomposer worker is a separate 20 kB chunk, loaded only when the paint tier is opened. |
+| **`maxStockThickness` is not in the shop profile** | It lives in `DecomposeOptions` with a 2" default (8/4 dressed), to avoid a schema bump for a P3-only field. It is a genuine shop property and gates a real refusal, so it should probably move — but moving it means `SCHEMA_VERSION` 3 and a codec migration, which is worth doing once rather than twice. |
+| **Tier 1 still blanks on a refusal** | Tier 2 keeps the last good design; tier 1 does not. The machinery now exists on the paint side, so P5's first item is half-built and the other half is a known shape rather than a design question. |
+| **The paint surface has no undo** | A merge that grows further than intended is only recoverable by splitting the pieces back or resizing the grid. Tier 1 does not need undo because its state is a handful of parameters; tier 2's state is a drawing, and drawings need undo. The first thing a real user will ask for. |
+| **Decomposer refusals are not findings** | They go to the paint panel, not the findings panel, because they are about a *target* and findings are about a *graph*. Defensible, and it does mean the two halves of "what is wrong with my design" appear in two places. |
 
 ---
 
@@ -415,3 +527,32 @@ node tools/check-spec.mjs
 `npm run check` is what CI runs. The `core/` boundary check (dependency-cruiser) fails the build
 if anything under `core/` imports React, the DOM, or `ui/` — that boundary is what keeps the
 geometry, validation, and cut-list logic independently testable.
+
+
+---
+
+## 10. The one open TODO
+
+`chooseSplit` in [`core/decompose/snap.ts`](../src/core/decompose/snap.ts). It is the only
+`TODO(human)` in the tree, and it is deliberately the *last* thing in the phase rather than a
+loose end.
+
+**What it decides.** When a painted arrangement admits no edge-to-edge cut, splitting one piece
+along a grid line unblocks it. Usually several lines would work, and they differ in what they cost
+— how many pieces they cut, how central they are, how large a piece they interrupt. `chooseSplit`
+picks one. It is roadmap open question 2 ("the best search heuristic needs empirical tuning") in
+its most concrete form, and there is no single right answer.
+
+**Why the phase ships without it.** The refusal path — the actual exit criterion — does not depend
+on it. `decompose()` wraps suggestion-building in a `try`/`catch` on purpose: a suggestion is
+best-effort help, a clean refusal is the contract, and a fault in the snapper must never turn
+"here is why this cannot be built" into a crash. So today a non-guillotine arrangement refuses
+correctly and says *"No automatic repair for this one. The remedy above is the fix."*
+
+Note that the other snap path already works: a piece too thick for stock is halved by
+`thinOversizePieces`, which needs no heuristic because the middle grid line is the only choice that
+cannot need splitting again on the same pass. That one is live and verified on the deployed build.
+
+**What lands when it is written.** The non-guillotine refusal gains a one-click repair, and for a
+rectilinear design that repair changes the picture not at all — both halves keep the species, so
+only a glue line appears. The button already knows how to say so.

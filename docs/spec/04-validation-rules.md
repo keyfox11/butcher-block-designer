@@ -175,6 +175,19 @@ cannot be followed. This rule is also the engine behind the free-paint decompose
 > A free-placement lay-up whose members are spread in two directions has no single clamping axis:
 > pressure across the board leaves the joints along it open, and the pieces slide. The rule
 > requires such a glue-up to declare `rowByRow` or `taped` rather than `simultaneous`.
+>
+> **And as it stands at P3.** The decomposition now exists, in `core/decompose`, built once as the
+> roadmap required — but `V-GEOM-040` still does not call it, and that is a decision rather than an
+> omission. The rule validates *graphs*, and every graph the tool can produce is constructible by
+> construction: a generator emits operations, and the free-paint tier only ever emits a graph the
+> decomposition has already succeeded on. Running the search again on its own output would prove
+> nothing and cost a full decomposition on every keystroke.
+>
+> Where the proof is genuinely needed is the free-paint surface, and there it runs *before* a graph
+> exists, reporting unreachable regions to the canvas rather than findings to this panel. The rule
+> would acquire a second, real job the moment tier-3 graph editing lands, because a hand-edited
+> graph is the first thing in the system that can be structurally wrong — and the function to call
+> will already be there.
 
 ### `V-GEOM-050` and the union: layered, not redundant
 
