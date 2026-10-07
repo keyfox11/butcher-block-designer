@@ -11,7 +11,8 @@ which class of bug, and the traps that cost time.
 
 **Status:** P0, P1 and P2 complete. 491 tests, CI green. Public under [MIT](../LICENSE) and live
 at <https://keyfox11.github.io/butcher-block-designer/>.
-**The next phase is an open decision** — see [§6](#6-the-open-decision).
+**The next phase is an open decision** — see [§6](#6-the-open-decision), which gained an option E
+(P5, interaction repair) on 2026-10-07.
 
 ---
 
@@ -116,6 +117,21 @@ one of them is ours to choose.
 **The transferable part:** an external cross-check is worth most when it enters the model from a
 direction your own tests cannot. Two sources that both compute forwards would have agreed for the
 same reasons.
+
+### Reading the output — still the broadest net, and now the only one that caught a UI bug
+
+Nothing in the test suite touches layout, so the two defects found on 2026-10-07 were found by
+looking: the 2-D board changed scale as the cursor moved across it, and the 3-D scale reference
+was a white rectangle described as "shown at true scale" without ever saying what scale.
+
+The first is worth keeping because the cause is not where the symptom is. The board resized
+because `.canvas-wrap` was shrink-to-fit, so its width came from its widest child — the **caption**
+— and the SVG's `max-width: 100%` followed. Hovering swapped the caption for a species-and-piece
+label of a different length, moving the board by up to 24%. Measured: 192px at the shortest label,
+239px at the longest. Nothing in `BoardCanvas.tsx` is wrong; the bug is a feedback loop between two
+CSS rules, and no amount of staring at the component would have found it.
+
+**The transferable part:** any status text whose content varies needs a box whose size does not.
 
 ### Citation integrity — catches knowledge drifting out of the knowledge base
 
@@ -272,6 +288,27 @@ The smallest bundle that makes a first real board possible and trustworthy.
 are now done — G4 pins the dimensional model from both directions, and the app is reachable at a
 bench. What remains is a single dimension that prints inconsistently, which is the last thing
 standing between the tool and a first real board.*
+
+### E — P5, interaction repair *(added 2026-10-07, after using the deployed app)*
+
+[P5](spec/10-roadmap.md#p5--interaction-repair) was added to the roadmap because three defects
+turned up within minutes of real use, and one of them destroys work.
+
+The headline: **an illegal parameter discards the whole design.** `App.tsx` derives everything
+from one `useMemo`; when a generator throws, the catch returns `{ ok: false }` and the viewport is
+replaced by "This design cannot be built" over a *Reset to the reference board* button. Drag
+**stripes per tile** one step too far on a 2½" basket weave and every other choice is gone. The
+refusal is correct — ½" strips are genuinely unsafe to rip — but a correct refusal should not
+delete the user's work.
+
+The fix that matters is not the red outline. `Stripes per tile` is hardcoded `max={12}`; the true
+ceiling is `floor(tileLong / minSafeRipWidth)` and varies with cell size and shop profile. Give
+the control its real bounds and the bad state becomes **unreachable** rather than recoverable.
+Keeping the last good design and typing the error so it names its parameter are still needed for
+the combinations no single control range can express.
+
+*Why it might go first: it is the only option on this list that every user hits on their first
+session, and unlike P3 and P4 it waits on nothing.*
 
 ### B — Finish the validator
 

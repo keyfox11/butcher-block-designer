@@ -59,8 +59,13 @@ button.active { background: var(--accent); border-color: var(--accent); color: #
   display: flex; align-items: stretch; justify-content: center;
   padding: 24px; min-width: 0; min-height: 0;
 }
-/* The 2-D canvas centres itself; the 3-D canvas needs to fill its cell. */
-.viewport > .canvas-wrap { align-self: center; margin: auto; }
+/* The 2-D canvas centres itself; the 3-D canvas needs to fill its cell.
+   `flex: 1` is load-bearing, not cosmetic: a shrink-to-fit wrap takes its width
+   from its widest child, which was the caption, and the board (max-width: 100%)
+   then followed it. Hovering a piece swaps the caption for a species-and-piece
+   label of a different length, so the board visibly changed scale as the cursor
+   moved. A definite width breaks that feedback loop. */
+.viewport > .canvas-wrap { align-self: center; flex: 1; min-width: 0; }
 
 @media (max-width: 1000px) {
   .layout { grid-template-columns: 1fr; }
@@ -105,7 +110,14 @@ label.radio { display: flex; align-items: center; gap: 8px; padding: 3px 0; curs
 }
 .face-outline { fill: transparent; stroke: rgba(0,0,0,0.5); stroke-width: 90; }
 .face-outline.hot { stroke: var(--accent); stroke-width: 260; }
-.canvas-caption { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.canvas-caption {
+  font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums;
+  /* Stretch rather than hug, so the caption can never drive the wrap's width
+     again, and so a long hover label truncates instead of wrapping to a second
+     line and shifting the board down. */
+  align-self: stretch; text-align: center;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 
 /* ---- findings ----------------------------------------------------------- */
 

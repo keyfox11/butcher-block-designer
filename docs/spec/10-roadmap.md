@@ -1,7 +1,11 @@
 # 10 — Roadmap
 
-Five phases. Each has an exit criterion that is a **demonstrable capability**, not a checklist of
+Six phases. Each has an exit criterion that is a **demonstrable capability**, not a checklist of
 files written.
+
+P0 through P4 are ordered by dependency. [P5](#p5--interaction-repair) is not: it repairs
+interaction on what already ships, so it can be taken at any point once there is something to
+interact with.
 
 The ordering principle: **the correctness core comes first and the creative surface comes last.**
 That is the opposite of the tempting order — a pattern gallery demos well on day one — but
@@ -117,6 +121,72 @@ receive a clear refusal naming the offending regions — never a silent approxim
 
 **Exit criterion.** A first-time user reaches a plausible, validated board in under a minute,
 prints a shop-ready document, and the whole print is legible in monochrome.
+
+---
+
+## P5 — Interaction repair
+
+**Goal:** make the controls that already exist behave well. Where P4 *adds* finishing features,
+P5 *repairs* interaction behaviour on what already ships.
+
+That difference is why it is a separate phase rather than more P4 bullets: every P4 item waits on
+something unbuilt (edge treatments, the pattern gallery), while every item here is about the 14
+patterns and the control panel that exist today. **P5 is orderable before P3 and P4**, and the
+case for doing it early is that the defects below are met by every user on their first session.
+
+### An illegal parameter must not destroy the design
+
+The defect, precisely. `App.tsx` derives everything from `{patternId, params, shop}` in a single
+`useMemo`. When a generator throws, the `catch` returns `{ ok: false }` and the entire viewport is
+replaced by "This design cannot be built" above a **Reset to the reference board** button. The
+design is gone. Nudging one slider one step too far discards every other choice the user made.
+
+Worked example, reproducible from the app's own defaults: choose **basket weave**, set cell size
+to 2½", and drag **stripes per tile** to 6. `multistage.ts` computes
+`stripeWidth = floor(tileLong / stripes)`, finds it below `shop.minSafeRipWidth`, and throws. The
+refusal is *correct* — ½" strips off a 2½" tile are genuinely unsafe to rip — but the response to
+a correct refusal should not be to delete the user's work.
+
+Three things need to change, and only the first is cosmetic:
+
+| | What | Why it is not just a red outline |
+| --- | --- | --- |
+| 1 | Keep rendering the **last good** design, and mark it stale | The design must survive the illegal state, or "drag the slider back" is not available as a recovery |
+| 2 | Attach the message to the **control at fault** | A thrown `Error` carries a sentence, not a field. Nothing in the error identifies `stripes`, so nothing can highlight that slider. Generators need to raise a typed refusal carrying the offending parameter |
+| 3 | Give each control its **real** bounds | `Stripes per tile` is hardcoded `max={12}` regardless of cell size. The true ceiling is `floor(tileLong / minSafeRipWidth)` and depends on two other inputs |
+
+Item 3 is the one that actually fixes it: a slider that stops at the last buildable value makes
+the bad state **unreachable** rather than merely recoverable, which is the same move the operation
+vocabulary makes with the thickness planer ([KB-A08](01-woodworking-domain.md#kb-a08--flattening-the-hard-safety-gate)).
+Items 1 and 2 remain worth doing for the combinations that cannot be expressed as a per-control
+range.
+
+### Separate a refusal from a bug
+
+The same `catch` handles both, and they are not the same thing. Of the 31 `throw` sites in
+`core/generators/`, some are refusals addressed to the user — *"A checkerboard needs at least 2
+columns and 2 rows"* — and others are internal invariants: *"Internal: no strip for column 3"*.
+Showing the second as **This design cannot be built** tells the user to change their design to work
+around what is actually a defect in the tool. Refusals belong on a control; invariant failures
+belong in an error report that says so.
+
+### The rest
+
+- **Fence-setting precision.** The 3D cube wants a `1.73205"` fence and the cut list prints
+  `1 23/32"` at the default 1/32", which builds a hexagon 0.023" under what the ledger states.
+  Bevel rips should default to 1/64". Measured, not hypothetical — visible on the deployed site.
+- **The Share button fails silently.** `navigator.clipboard.writeText` is called with no `.catch`,
+  so a refused clipboard leaves an unhandled rejection and no feedback. The URL *is* already in
+  the address bar, so the fallback message is accurate and cheap.
+- **Findings should link to controls**, not only to pieces. A finding naming a parameter should
+  focus the control that sets it.
+- **Hover must not move anything.** Fixed, and recorded here as the class: the 2-D caption was
+  sizing its own flex container, so the board changed scale by up to 24% as the cursor crossed
+  pieces. Any status text whose content varies needs a box whose size does not.
+
+**Exit criterion.** No sequence of control movements can reach a state that discards the user's
+design. Every control that can be driven out of range says so on itself, in place, and can be
+dragged back. No message addressed to the user describes an internal invariant.
 
 ---
 

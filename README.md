@@ -235,7 +235,7 @@ Exits non-zero, so it gates CI.
 | [`07-pattern-library.md`](docs/spec/07-pattern-library.md) | Pattern generators, and the free-paint solver with honest limits |
 | [`08-architecture-and-stack.md`](docs/spec/08-architecture-and-stack.md) | React + TS + Three.js, module boundaries, testing strategy |
 | [`09-exports.md`](docs/spec/09-exports.md) | Printable output, project files, shareable URLs |
-| [`10-roadmap.md`](docs/spec/10-roadmap.md) | Phased build plan, P0 through P4 |
+| [`10-roadmap.md`](docs/spec/10-roadmap.md) | Phased build plan, P0 through P5 |
 | [`references.md`](docs/spec/references.md) | Every source, and what each one established |
 
 If you only read two specs, read `01` and `02`. The domain knowledge in `01` is what makes the
